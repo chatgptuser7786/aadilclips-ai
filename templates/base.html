@@ -1,1 +1,104 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>aadilclips.ai | AI Clip Studio</title><link rel="stylesheet" href="/static/style.css"><link rel="icon" href="/static/logo.png"></head><body><header><a class="brand" href="/"><img src="/static/logo.png" alt="Aadil Clips logo"><span>aadilclips<span class="red">.ai</span></span></a><nav><a href="/#about">About</a>{% if user %}<a href="/dashboard">Dashboard</a>{% if user.role=='admin' %}<a href="/admin">Admin</a>{% endif %}<form method="post" action="/logout"><button class="navbtn">Log out</button></form>{% else %}<a href="/login">Log in</a><a class="navbtn" href="/signup">Get started</a>{% endif %}</nav></header><main>{% block content %}{% endblock %}</main><footer>© 2026 aadilclips.ai · Built for creators · <a href="https://www.instagram.com/earnwaadil/" target="_blank" rel="noopener">@earnwaadil</a></footer></body></html>
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>aadilclips.ai | AI Clip Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="/static/logo.png">
+
+  <style>
+    html {
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+    }
+
+    body {
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+    }
+
+    body > main {
+      display: block;
+      width: 100%;
+      max-width: none;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+    }
+
+    body > main > .dashboard.studio-v2 {
+      width: 100%;
+      max-width: none !important;
+      min-width: 0;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    body > main > .dashboard.studio-v2 > .box {
+      width: 100%;
+      max-width: none;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 900px) {
+      body > main > .dashboard.studio-v2 {
+        padding-left: 32px;
+        padding-right: 32px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      body > main > .dashboard.studio-v2 {
+        padding-left: 15px;
+        padding-right: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/static/logo.png" alt="Aadil Clips logo">
+      <span>aadilclips<span class="red">.ai</span></span>
+    </a>
+
+    <nav>
+      <a href="/#about">About</a>
+
+      {% if user %}
+        <a href="/dashboard">Dashboard</a>
+
+        {% if user.role == 'admin' %}
+          <a href="/admin">Admin</a>
+        {% endif %}
+
+        <form method="post" action="/logout">
+          <button class="navbtn" type="submit">Log out</button>
+        </form>
+      {% else %}
+        <a href="/login">Log in</a>
+        <a class="navbtn" href="/signup">Get started</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}
+    {% endblock %}
+  </main>
+
+  <footer>
+    © 2026 aadilclips.ai · Built for creators ·
+    <a
+      href="https://www.instagram.com/earnwaadil/"
+      target="_blank"
+      rel="noopener"
+    >@earnwaadil</a>
+  </footer>
+</body>
+</html>
