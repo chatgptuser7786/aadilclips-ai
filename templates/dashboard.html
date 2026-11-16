@@ -205,6 +205,18 @@
 .preview-caption.effect-outline{-webkit-text-stroke:1px black}
 .preview-caption.effect-shadow{text-shadow:4px 4px #ff3648}
 @media(max-width:680px){.preview-stage{min-height:280px}.preview-frame{width:175px}.preview-frame.ratio-square{width:230px}.extras-grid{grid-template-columns:1fr}.option-card{min-width:78px}}
+
+/* Mobile viewport and horizontal overflow repair */
+html:has(.studio-v2),body:has(.studio-v2){width:100%!important;min-width:0!important;max-width:none!important;overflow-x:clip!important}
+body:has(.studio-v2)>header,body:has(.studio-v2)>main,body:has(.studio-v2)>footer{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+body:has(.studio-v2)>main>.dashboard.studio-v2{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;box-sizing:border-box!important;overflow-x:clip!important}
+.studio-v2>.box,.studio-v2 #clip-form,.studio-v2 .preview-panel,.studio-v2 .preview-stage,.studio-v2 .settings-section,.studio-v2 .caption-gallery{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.studio-v2 .caption-gallery{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overscroll-behavior-x:contain;scrollbar-width:thin}
+.studio-v2 .caption-style-card{flex:0 0 135px;min-width:0}
+.studio-v2 .preview-frame{max-width:100%!important}
+.studio-v2 .option-row{min-width:0;max-width:100%;flex-wrap:wrap}
+.studio-v2 .editor-grid,.studio-v2 .extras-grid{min-width:0;max-width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:680px){.studio-v2 .editor-grid,.studio-v2 .extras-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 <script>
 (function(){
