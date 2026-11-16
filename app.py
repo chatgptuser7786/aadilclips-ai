@@ -1,840 +1,349 @@
-
-import os
-import sqlite3
-import secrets
-import hashlib
-import hmac
-import json
-import subprocess
-import threading
-import re
-import uuid
+import os, re, json, uuid, hmac, hashlib, secrets, sqlite3, subprocess, threading, wave
 from pathlib import Path
-
 import numpy as np
-from fastapi import FastAPI, Request, Form, UploadFile, File, HTTPException
+from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-BASE = Path(__file__).parent
-
-for directory in ("uploads", "outputs"):
-    (BASE / directory).mkdir(exist_ok=True)
-
+BASE = Path(__file__).resolve().parent
+for folder in ("uploads", "outputs", "static"):
+    (BASE / folder).mkdir(exist_ok=True)
 DB = BASE / "clips.db"
-
-SECRET = os.environ.get("SESSION_SECRET", "")
-if not SECRET:
-    SECRET = secrets.token_urlsafe(32)
-    print("WARNING: SESSION_SECRET not set. Sessions reset on restart.")
-
 app = FastAPI(title="aadilclips.ai")
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=SECRET,
-    https_only=os.getenv("HTTPS_ONLY") == "1",
-    same_site="lax",
-)
-
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET") or secrets.token_urlsafe(32), same_site="lax")
+app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 tpl = Jinja2Templates(directory=str(BASE / "templates"))
-tpl.env.filters["from_json"] = json.loads
-
-app.mount(
-    "/static",
-    StaticFiles(directory=str(BASE / "static")),
-    name="static",
-)
-
+tpl.env.filters["from_json"] = lambda value: json.loads(value or "[]")
 MAX_UPLOAD = 500 * 1024 * 1024
-
-CAPTION_STYLES = [
-    "None",
-    "Hormozi Bold",
-    "Karaoke Yellow",
-    "Neon Red",
-    "Neon Blue",
-    "Minimal White",
-    "Classic Yellow",
-    "Gaming Green",
-    "Comic Pop",
-    "Cinematic",
-    "TikTok Bold",
-    "Instagram Clean",
-    "Shadow White",
-    "Outline Black",
-    "Gold Luxe",
-    "Pink Glow",
-    "Purple Glow",
-    "Orange Punch",
-    "Retro Pixel",
-    "Subtitle Bar",
-    "High Contrast",
-]
-
-QUALITY_PRESETS = {
-    "720p": (720, 24),
-    "1080p": (1080, 20),
-    "1440p": (1440, 18),
-}
-
+CAPTION_STYLES = ["None", "Hormozi Bold", "Karaoke Yellow", "Neon Red", "Neon Blue", "Minimal White", "Classic Yellow", "Gaming Green", "Comic Pop", "Cinematic", "TikTok Bold", "Instagram Clean", "Shadow White", "Outline Black", "Gold Luxe", "Pink Glow", "Purple Glow", "Orange Punch", "Retro Pixel", "Subtitle Bar", "High Contrast"]
+QUALITY_PRESETS = {"720p": (720, 24), "1080p": (1080, 20), "1440p": (1440, 18)}
 VIDEO_RATIOS = ("9:16", "1:1", "16:9")
 CROP_MODES = ("fill", "fit", "blur", "manual")
 
-
 def db():
-    connection = sqlite3.connect(DB, timeout=30)
-    connection.row_factory = sqlite3.Row
-    return connection
-
+    c = sqlite3.connect(DB, timeout=30)
+    c.row_factory = sqlite3.Row
+    return c
 
 def hashpw(password, salt=None):
     salt = salt or secrets.token_hex(16)
-    hashed = hashlib.scrypt(
-        password.encode(),
-        salt=bytes.fromhex(salt),
-        n=16384,
-        r=8,
-        p=1,
-    ).hex()
-    return salt + ":" + hashed
-
+    return salt + ":" + hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1).hex()
 
 def verify(password, stored):
     try:
-        salt, _ = stored.split(":", 1)
-        return hmac.compare_digest(hashpw(password, salt), stored)
+        return hmac.compare_digest(hashpw(password, stored.split(":")[0]), stored)
     except Exception:
         return False
 
-
 def init():
     with db() as c:
-        c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users(
-                id INTEGER PRIMARY KEY,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'user',
-                blocked INTEGER DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-
-        c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS jobs(
-                id TEXT PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                source TEXT,
-                mode TEXT,
-                status TEXT,
-                progress TEXT,
-                clips TEXT DEFAULT '[]',
-                error TEXT DEFAULT '',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-
-        c.execute(
-            """
-            CREATE TABLE IF NOT EXISTS settings(
-                key TEXT PRIMARY KEY,
-                value TEXT
-            )
-            """
-        )
-
-        c.execute(
-            "INSERT OR IGNORE INTO settings VALUES (?,?)",
-            (
-                "about",
-                "Clipping My Way to Success | Whop | Content Rewards | Real Results, Real Journey",
-            ),
-        )
-
-        c.execute(
-            "INSERT OR IGNORE INTO settings VALUES (?,?)",
-            ("daily_limit", "3"),
-        )
-
-        admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
-        admin_password = os.getenv("ADMIN_PASSWORD", "")
-
-        if admin_email and admin_password:
-            if len(admin_password) < 14:
-                raise RuntimeError(
-                    "ADMIN_PASSWORD must have at least 14 characters"
-                )
-
-            existing = c.execute(
-                "SELECT id FROM users WHERE email=?",
-                (admin_email,),
-            ).fetchone()
-
+        c.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',blocked INTEGER DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,user_id INTEGER NOT NULL,source TEXT,mode TEXT,status TEXT,progress TEXT,clips TEXT DEFAULT '[]',error TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT)")
+        c.execute("INSERT OR IGNORE INTO settings VALUES (?,?)", ("about", "Clipping My Way to Success | Whop | Content Rewards | Real Results, Real Journey"))
+        c.execute("INSERT OR IGNORE INTO settings VALUES (?,?)", ("daily_limit", "3"))
+        email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+        password = os.getenv("ADMIN_PASSWORD", "")
+        if email and password:
+            if len(password) < 14:
+                raise RuntimeError("ADMIN_PASSWORD must have at least 14 characters")
+            existing = c.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
             if existing:
-                c.execute(
-                    "UPDATE users SET role='admin' WHERE id=?",
-                    (existing["id"],),
-                )
+                c.execute("UPDATE users SET role='admin' WHERE id=?", (existing["id"],))
             else:
-                c.execute(
-                    """
-                    INSERT INTO users(email,password,role)
-                    VALUES (?,?,'admin')
-                    """,
-                    (admin_email, hashpw(admin_password)),
-                )
-
-
+                c.execute("INSERT INTO users(email,password,role) VALUES (?,?,'admin')", (email, hashpw(password)))
 init()
-
 
 def user(request):
     uid = request.session.get("uid")
     if not uid:
         return None
-
     with db() as c:
-        row = c.execute(
-            "SELECT id,email,role,blocked FROM users WHERE id=?",
-            (uid,),
-        ).fetchone()
-
-    return row if row and not row["blocked"] else None
-
-
-def page(request, name, **kwargs):
-    return tpl.TemplateResponse(
-        request,
-        name,
-        {"user": user(request), **kwargs},
-    )
-
+        found = c.execute("SELECT id,email,role,blocked FROM users WHERE id=?", (uid,)).fetchone()
+    return found if found and not found["blocked"] else None
 
 def require(request, admin=False):
-    current_user = user(request)
-
-    if not current_user:
+    found = user(request)
+    if not found:
         raise HTTPException(401, "Please sign in")
-
-    if admin and current_user["role"] != "admin":
+    if admin and found["role"] != "admin":
         raise HTTPException(403, "Admin only")
+    return found
 
-    return current_user
-
+def page(request, name, **kwargs):
+    return tpl.TemplateResponse(request, name, {"user": user(request), **kwargs})
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     with db() as c:
-        about = c.execute(
-            "SELECT value FROM settings WHERE key='about'"
-        ).fetchone()["value"]
-
+        about = c.execute("SELECT value FROM settings WHERE key='about'").fetchone()["value"]
     return page(request, "index.html", about=about)
-
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return page(request, "auth.html", register=False)
 
-
 @app.get("/signup", response_class=HTMLResponse)
 def signup_page(request: Request):
     return page(request, "auth.html", register=True)
 
-
 @app.post("/signup")
-def signup(
-    request: Request,
-    email: str = Form(...),
-    password: str = Form(...),
-):
+def signup(request: Request, email: str = Form(...), password: str = Form(...)):
     email = email.strip().lower()
-
-    if (
-        not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)
-        or len(password) < 12
-    ):
-        return page(
-            request,
-            "auth.html",
-            register=True,
-            error="Valid email and 12+ character password required",
-        )
-
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) or len(password) < 12:
+        return page(request, "auth.html", register=True, error="Valid email and 12+ character password required")
     try:
         with db() as c:
-            cur = c.execute(
-                "INSERT INTO users(email,password) VALUES (?,?)",
-                (email, hashpw(password)),
-            )
-            uid = cur.lastrowid
+            uid = c.execute("INSERT INTO users(email,password) VALUES (?,?)", (email, hashpw(password))).lastrowid
     except sqlite3.IntegrityError:
-        return page(
-            request,
-            "auth.html",
-            register=True,
-            error="Email already registered",
-        )
-
+        return page(request, "auth.html", register=True, error="Email already registered")
     request.session["uid"] = uid
     return RedirectResponse("/dashboard", 303)
 
-
 @app.post("/login")
-def login(
-    request: Request,
-    email: str = Form(...),
-    password: str = Form(...),
-):
+def login(request: Request, email: str = Form(...), password: str = Form(...)):
     with db() as c:
-        found = c.execute(
-            "SELECT * FROM users WHERE email=?",
-            (email.strip().lower(),),
-        ).fetchone()
-
-    if (
-        not found
-        or found["blocked"]
-        or not verify(password, found["password"])
-    ):
-        return page(
-            request,
-            "auth.html",
-            register=False,
-            error="Invalid credentials",
-        )
-
+        found = c.execute("SELECT * FROM users WHERE email=?", (email.strip().lower(),)).fetchone()
+    if not found or found["blocked"] or not verify(password, found["password"]):
+        return page(request, "auth.html", register=False, error="Invalid credentials")
     request.session["uid"] = found["id"]
-
-    destination = (
-        "/admin" if found["role"] == "admin" else "/dashboard"
-    )
-    return RedirectResponse(destination, 303)
-
+    return RedirectResponse("/admin" if found["role"] == "admin" else "/dashboard", 303)
 
 @app.post("/logout")
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", 303)
 
-
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
-    current_user = require(request)
-
+    found = require(request)
     with db() as c:
-        jobs = c.execute(
-            """
-            SELECT * FROM jobs
-            WHERE user_id=?
-            ORDER BY created_at DESC
-            LIMIT 30
-            """,
-            (current_user["id"],),
-        ).fetchall()
-
-    return page(
-        request,
-        "dashboard.html",
-        jobs=jobs,
-        caption_styles=CAPTION_STYLES,
-    )
-
+        jobs = c.execute("SELECT * FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT 30", (found["id"],)).fetchall()
+    return page(request, "dashboard.html", jobs=jobs, caption_styles=CAPTION_STYLES)
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin(request: Request):
     require(request, True)
-
     with db() as c:
-        users = c.execute(
-            """
-            SELECT id,email,role,blocked,created_at
-            FROM users ORDER BY id DESC
-            """
-        ).fetchall()
-
-        jobs = c.execute(
-            """
-            SELECT jobs.*,users.email
-            FROM jobs
-            JOIN users ON users.id=jobs.user_id
-            ORDER BY created_at DESC
-            LIMIT 40
-            """
-        ).fetchall()
-
-        settings = {
-            row["key"]: row["value"]
-            for row in c.execute("SELECT * FROM settings")
-        }
-
-    return page(
-        request,
-        "admin.html",
-        users=users,
-        jobs=jobs,
-        settings=settings,
-    )
-
+        users = c.execute("SELECT id,email,role,blocked,created_at FROM users ORDER BY id DESC").fetchall()
+        jobs = c.execute("SELECT jobs.*,users.email FROM jobs JOIN users ON users.id=jobs.user_id ORDER BY jobs.created_at DESC LIMIT 40").fetchall()
+        settings = {row["key"]: row["value"] for row in c.execute("SELECT * FROM settings")}
+    return page(request, "admin.html", users=users, jobs=jobs, settings=settings)
 
 @app.post("/admin/settings")
-def settings(
-    request: Request,
-    about: str = Form(...),
-    daily_limit: int = Form(...),
-):
+def settings(request: Request, about: str = Form(...), daily_limit: int = Form(...)):
     require(request, True)
-
     if not 1 <= daily_limit <= 100:
         raise HTTPException(400, "Invalid limit")
-
     with db() as c:
-        c.execute(
-            "UPDATE settings SET value=? WHERE key='about'",
-            (about[:1000],),
-        )
-        c.execute(
-            "UPDATE settings SET value=? WHERE key='daily_limit'",
-            (str(daily_limit),),
-        )
-
+        c.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", ("about", about[:1000]))
+        c.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", ("daily_limit", str(daily_limit)))
     return RedirectResponse("/admin", 303)
-
 
 @app.post("/admin/users/{uid}/toggle")
 def toggle(request: Request, uid: int):
-    current_user = require(request, True)
-
-    if uid == current_user["id"]:
+    found = require(request, True)
+    if uid == found["id"]:
         raise HTTPException(400, "Cannot block yourself")
-
     with db() as c:
-        c.execute(
-            """
-            UPDATE users
-            SET blocked=1-blocked
-            WHERE id=? AND role!='admin'
-            """,
-            (uid,),
-        )
-
+        c.execute("UPDATE users SET blocked=1-blocked WHERE id=? AND role!='admin'", (uid,))
     return RedirectResponse("/admin", 303)
 
-
-def run(command, timeout=1800):
-    return subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        check=True,
-    )
-
+def run(command, timeout=900):
+    return subprocess.run(command, capture_output=True, text=True, check=True, timeout=timeout)
 
 def update(jid, **fields):
-    allowed = {
-        "status",
-        "progress",
-        "clips",
-        "error",
-    }
-
+    allowed = {"status", "progress", "clips", "error"}
     with db() as c:
         for key, value in fields.items():
             if key not in allowed:
-                raise ValueError("Invalid job update field")
+                raise ValueError("Invalid job field")
+            c.execute(f"UPDATE jobs SET {key}=? WHERE id=?", (value, jid))
 
-            c.execute(
-                f"UPDATE jobs SET {key}=? WHERE id=?",
-                (value, jid),
-            )
-
-
-def select_windows(
-    path,
-    mode,
-    clip_length=30,
-    max_clips=3,
-):
-    # Audio-energy based selection, not semantic AI analysis.
-    import wave
-
+def select_windows(path, mode, clip_length=30, max_clips=3):
     pcm = BASE / "uploads" / (uuid.uuid4().hex + ".wav")
-
     try:
-        run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                str(path),
-                "-vn",
-                "-ac",
-                "1",
-                "-ar",
-                "8000",
-                "-acodec",
-                "pcm_s16le",
-                str(pcm),
-            ],
-            timeout=600,
-        )
-
+        run(["ffmpeg", "-y", "-i", str(path), "-vn", "-ac", "1", "-ar", "8000", "-acodec", "pcm_s16le", str(pcm)], 600)
         with wave.open(str(pcm), "rb") as audio:
-            samples = (
-                np.frombuffer(
-                    audio.readframes(audio.getnframes()),
-                    dtype=np.int16,
-                ).astype(np.float32)
-                / 32768
-            )
-
+            samples = np.frombuffer(audio.readframes(audio.getnframes()), dtype=np.int16).astype(np.float32) / 32768
         duration = len(samples) / 8000
-
         if duration < 5:
-            raise ValueError("Video must be at least 5 seconds")
-
-        length = min(
-            clip_length,
-            max(5, int(duration)),
-        )
-
+            raise ValueError("Video must be at least 5 seconds and contain audio")
+        length = min(clip_length, int(duration))
         if duration <= length:
             return [(0, length)]
-
         windows = []
-
-        for start in range(
-            0,
-            max(1, int(duration - length) + 1),
-            5,
-        ):
-            chunk = samples[
-                start * 8000:
-                int((start + length) * 8000)
-            ]
-
+        for start in range(0, max(1, int(duration - length) + 1), 5):
+            chunk = samples[start * 8000:int((start + length) * 8000)]
             if len(chunk) < 8000:
                 continue
-
             rms = float(np.sqrt(np.mean(chunk ** 2)))
-            peaks = float(
-                np.percentile(np.abs(chunk[::40]), 95)
-            )
-
-            if mode == "funny":
-                score = 0.65 * rms + 0.35 * peaks
-            else:
-                score = 0.5 * rms + 0.5 * peaks
-
+            peak = float(np.percentile(np.abs(chunk[::40]), 95))
+            score = (0.65 * rms + 0.35 * peak) if mode == "funny" else (0.5 * rms + 0.5 * peak)
             windows.append((score, start))
-
         chosen = []
-
         for _, start in sorted(windows, reverse=True):
-            if all(
-                abs(start - previous_start) >= length * 0.8
-                for previous_start, _ in chosen
-            ):
+            if all(abs(start - old) >= length * 0.8 for old, _ in chosen):
                 chosen.append((start, length))
-
             if len(chosen) >= max_clips:
                 break
-
         return sorted(chosen) or [(0, length)]
-
     finally:
         pcm.unlink(missing_ok=True)
 
+def get_dimensions(quality, ratio):
+    size, crf = QUALITY_PRESETS[quality]
+    if ratio == "9:16":
+        return size, size * 16 // 9, crf
+    if ratio == "16:9":
+        return size * 16 // 9, size, crf
+    return size, size, crf
 
-def get_dimensions(quality, video_ratio):
-    base_size, crf = QUALITY_PRESETS[quality]
+def video_filter(width, height, crop):
+    if crop in ("fill", "manual"):
+        return f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1"
+    if crop == "fit":
+        return f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1"
+    return (f"split=2[bg][fg];[bg]scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},boxblur=20:2[blur];"
+            f"[fg]scale={width}:{height}:force_original_aspect_ratio=decrease[front];"
+            "[blur][front]overlay=(W-w)/2:(H-h)/2,setsar=1")
 
-    if video_ratio == "9:16":
-        width = base_size
-        height = base_size * 16 // 9
-
-    elif video_ratio == "1:1":
-        width = base_size
-        height = base_size
-
-    elif video_ratio == "16:9":
-        width = base_size * 16 // 9
-        height = base_size
-
-    else:
-        raise ValueError("Unsupported video ratio")
-
-    return width, height, crf
-
-
-def build_video_filter(width, height, crop_mode):
-    if crop_mode in ("fill", "manual"):
-        return (
-            f"scale={width}:{height}:"
-            "force_original_aspect_ratio=increase,"
-            f"crop={width}:{height},"
-            "setsar=1"
-        )
-
-    if crop_mode == "fit":
-        return (
-            f"scale={width}:{height}:"
-            "force_original_aspect_ratio=decrease,"
-            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:"
-            "color=black,"
-            "setsar=1"
-        )
-
-    if crop_mode == "blur":
-        return (
-            "split=2[background][foreground];"
-            f"[background]scale={width}:{height}:"
-            "force_original_aspect_ratio=increase,"
-            f"crop={width}:{height},"
-            "boxblur=20:2[blurred];"
-            f"[foreground]scale={width}:{height}:"
-            "force_original_aspect_ratio=decrease"
-            "[front];"
-            "[blurred][front]overlay="
-            "(W-w)/2:(H-h)/2,"
-            "setsar=1"
-        )
-
-    raise ValueError("Unsupported crop mode")
-
-
-def caption_filter(
-    folder,
-    index,
-    width,
-    caption_style,
-    caption_text,
-    caption_size,
-    caption_position,
-):
-    if caption_style == "None" or not caption_text.strip():
+def caption_filter(folder, index, width, style, text, size, position):
+    if style == "None" or not text.strip():
         return ""
+    font = os.getenv("CAPTION_FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+    if not Path(font).is_file():
+        raise ValueError("Caption font not installed on server")
+    colors = {"Karaoke Yellow":"yellow","Classic Yellow":"yellow","Neon Red":"red","Neon Blue":"cyan","Gaming Green":"lime","Gold Luxe":"gold","Pink Glow":"pink","Purple Glow":"violet","Orange Punch":"orange"}
+    y = {"top":"h*0.15","middle":"(h-text_h)/2","bottom":"h*0.78"}[position]
+    txt = folder / f"caption_{index}.txt"
+    txt.write_text(text, encoding="utf-8")
+    if any(ch in str(txt) + str(font) for ch in "':,;[]\\"):
+        raise ValueError("Caption file path contains unsupported characters")
+    return (f"drawtext=fontfile='{font}':textfile='{txt}':fontcolor={colors.get(style,'white')}:"
+            f"fontsize={max(20,int(size*width/1080))}:borderw=3:bordercolor=black:x=(w-text_w)/2:y={y}")
 
-    colors = {
-        "Karaoke Yellow": "yellow",
-        "Classic Yellow": "yellow",
-        "Neon Red": "red",
-        "Neon Blue": "cyan",
-        "Gaming Green": "lime",
-        "Gold Luxe": "gold",
-        "Pink Glow": "hotpink",
-        "Purple Glow": "violet",
-        "Orange Punch": "orange",
-    }
-
-    color = colors.get(caption_style, "white")
-
-    positions = {
-        "top": "h*0.15",
-        "middle": "(h-text_h)/2",
-        "bottom": "h*0.78",
-    }
-
-    caption_file = folder / f"caption_{index}.txt"
-    caption_file.write_text(
-        caption_text,
-        encoding="utf-8",
-    )
-
-    fontfile = os.getenv(
-        "CAPTION_FONT_FILE",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    )
-
-    if not Path(fontfile).is_file():
-        raise ValueError(
-            "Caption font unavailable. "
-            "Set CAPTION_FONT_FILE to a valid .ttf path"
-        )
-
-    if any(
-        char in str(fontfile)
-        for char in "':,;[]\\"
-    ) or any(
-        char in str(caption_file)
-        for char in "':,;[]\\"
-    ):
-        raise ValueError(
-            "Caption path contains unsupported characters"
-        )
-
-    fontsize = max(
-        20,
-        int(caption_size * width / 1080),
-    )
-
-    box = ""
-
-    if caption_style == "Subtitle Bar":
-        box = (
-            ":box=1"
-            ":boxcolor=black@0.65"
-            ":boxborderw=14"
-        )
-
-    return (
-        f"drawtext=fontfile='{fontfile}':"
-        f"textfile='{caption_file}':"
-        f"fontcolor={color}:"
-        f"fontsize={fontsize}:"
-        "borderw=3:"
-        "bordercolor=black:"
-        "x=(w-text_w)/2:"
-        f"y={positions[caption_position]}"
-        f"{box}"
-    )
-
-
-def process(
-    jid,
-    source,
-    mode,
-    upload_path=None,
-    clip_length=30,
-    quality="1080p",
-    caption_style="None",
-    caption_text="",
-    caption_size=48,
-    caption_position="bottom",
-    video_ratio="9:16",
-    crop_mode="fill",
-):
+def process(jid, source, mode, upload_path, clip_length, quality, style, text, size, position, ratio, crop):
     try:
-        update(
-            jid,
-            status="processing",
-            progress="Preparing source",
-        )
-
+        update(jid, status="processing", progress="Preparing source")
         folder = BASE / "uploads" / jid
         folder.mkdir(exist_ok=True)
-
         if upload_path:
             src = Path(upload_path)
         else:
             if os.getenv("ENABLE_YOUTUBE") != "1":
-                raise ValueError(
-                    "YouTube URL importing is disabled. "
-                    "Upload a video you own or have permission to use."
-                )
-
-            if not re.fullmatch(
-                r"https://(www\.)?"
-                r"(youtube\.com/watch\?[^\s]+|youtu\.be/[\w-]+)",
-                source,
-            ):
-                raise ValueError(
-                    "Only YouTube URLs are supported"
-                )
-
-            run(
-                [
-                    "yt-dlp",
-                    "--no-playlist",
-                    "--max-filesize",
-                    "500M",
-                    "--match-filter",
-                    "duration <= 3600",
-                    "-f",
-                    "bv*+ba/b",
-                    "--merge-output-format",
-                    "mp4",
-                    "-o",
-                    str(folder / "source.%(ext)s"),
-                    source,
-                ],
-                timeout=900,
-            )
-
+                raise ValueError("YouTube importing is disabled. Please upload a video.")
+            if not re.fullmatch(r"https://(www\.)?(youtube\.com/watch\?[^\s]+|youtu\.be/[\w-]+)", source):
+                raise ValueError("Unsupported YouTube URL")
+            run(["yt-dlp", "--no-playlist", "--max-filesize", "500M", "--match-filter", "duration <= 3600", "-f", "bv*+ba/b", "--merge-output-format", "mp4", "-o", str(folder / "source.%(ext)s"), source], 900)
             matches = list(folder.glob("source.*"))
-
             if not matches:
-                raise ValueError(
-                    "Video could not be imported"
-                )
-
+                raise ValueError("Unable to import video")
             src = matches[0]
-
-        update(
-            jid,
-            progress="Analyzing audio highlights",
-        )
-
-        windows = select_windows(
-            src,
-            mode,
-            clip_length=clip_length,
-        )
-
-        width, height, crf = get_dimensions(
-            quality,
-            video_ratio,
-        )
-
-        output_clips = []
-
-        for index, (start, length) in enumerate(
-            windows,
-            1,
-        ):
-            update(
-                jid,
-                progress=(
-                    f"Rendering clip {index}/{len(windows)}"
-                ),
-            )
-
+        update(jid, progress="Analyzing audio highlights")
+        windows = select_windows(src, mode, clip_length)
+        width, height, crf = get_dimensions(quality, ratio)
+        clips = []
+        for index, (start, duration) in enumerate(windows, 1):
+            update(jid, progress=f"Rendering clip {index}/{len(windows)}")
             filename = f"{jid}_{index}.mp4"
             target = BASE / "outputs" / filename
+            vf = video_filter(width, height, crop)
+            cf = caption_filter(folder, index, width, style, text, size, position)
+            if crop == "blur":
+                graph = vf + ("," + cf if cf else "") + "[outv]"
+                filter_args = ["-filter_complex", graph, "-map", "[outv]", "-map", "0:a?"]
+            else:
+                filter_args = ["-vf", vf + ("," + cf if cf else "")]
+            run(["ffmpeg", "-y", "-ss", str(start), "-i", str(src), "-t", str(duration), *filter_args,
+                 "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf), "-c:a", "aac",
+                 "-movflags", "+faststart", str(target)], 900)
+            clips.append({"filename":filename,"start":start,"duration":duration,"ratio":ratio,"crop":crop})
+        update(jid, status="done", progress="Complete", clips=json.dumps(clips))
+    except Exception as exc:
+        update(jid, status="failed", progress="Failed", error=str(exc)[:500])
 
-            video_filter = build_video_filter(
-                width,
-                height,
-                crop_mode,
-            )
+@app.post("/jobs")
+async def create_job(
+    request: Request, mode: str = Form("best"), url: str = Form(""),
+    video: UploadFile | None = File(None), clip_length: int = Form(30),
+    quality: str = Form("1080p"), caption_style: str = Form("None"),
+    caption_text: str = Form(""), caption_size: int = Form(48),
+    caption_position: str = Form("bottom"), video_ratio: str = Form("9:16"),
+    crop_mode: str = Form("fill")
+):
+    found = require(request)
+    if mode not in ("best", "funny") or not 5 <= clip_length <= 60:
+        raise HTTPException(400, "Invalid clip settings")
+    if quality not in QUALITY_PRESETS or video_ratio not in VIDEO_RATIOS or crop_mode not in CROP_MODES:
+        raise HTTPException(400, "Invalid video settings")
+    if caption_style not in CAPTION_STYLES or caption_position not in ("top","middle","bottom") or not 24 <= caption_size <= 96 or len(caption_text) > 160:
+        raise HTTPException(400, "Invalid caption settings")
+    has_video = bool(video and video.filename)
+    if not has_video and not url.strip():
+        raise HTTPException(400, "Upload a video or enter a URL")
+    extension = Path(video.filename).suffix.lower() if has_video else ""
+    if has_video and extension not in (".mp4", ".mov", ".mkv", ".webm"):
+        raise HTTPException(400, "Unsupported file type")
+    if not has_video and os.getenv("ENABLE_YOUTUBE") != "1":
+        raise HTTPException(400, "YouTube importing is currently disabled")
+    with db() as c:
+        limit = int(c.execute("SELECT value FROM settings WHERE key='daily_limit'").fetchone()["value"])
+        count = c.execute("SELECT COUNT(*) FROM jobs WHERE user_id=? AND date(created_at)=date('now')", (found["id"],)).fetchone()[0]
+        if count >= limit and found["role"] != "admin":
+            raise HTTPException(429, "Daily limit reached")
+        jid = uuid.uuid4().hex
+        c.execute("INSERT INTO jobs(id,user_id,source,mode,status,progress) VALUES (?,?,?,?,?,?)",
+                  (jid, found["id"], "upload" if has_video else url[:300], mode, "queued", "Queued"))
+    path = None
+    if has_video:
+        path = BASE / "uploads" / (jid + extension)
+        total = 0
+        try:
+            with open(path, "wb") as output:
+                while True:
+                    chunk = await video.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > MAX_UPLOAD:
+                        raise HTTPException(413, "Maximum file size is 500 MB")
+                    output.write(chunk)
+        except Exception:
+            path.unlink(missing_ok=True)
+            with db() as c:
+                c.execute("DELETE FROM jobs WHERE id=?", (jid,))
+            raise
+    threading.Thread(target=process, args=(jid, url.strip(), mode, str(path) if path else None,
+                     clip_length, quality, caption_style, caption_text, caption_size,
+                     caption_position, video_ratio, crop_mode), daemon=True).start()
+    return RedirectResponse("/dashboard", 303)
 
-            text_filter = caption_filter(
-                folder,
-                index,
-                width,
-                caption_style,
-                caption_text,
-                caption_size,
-                caption_position,
-            )
+@app.get("/api/jobs")
+def api_jobs(request: Request):
+    found = require(request)
+    with db() as c:
+        rows = c.execute("SELECT id,status,progress,clips,error FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT 30", (found["id"],)).fetchall()
+    return JSONResponse([dict(row) for row in rows])
 
-            if crop_mode == "blur":
-                # The blur filter has multiple inputs,
-                # so FFmpeg needs filter_complex.
-                if text_filter:
-                    filter_graph = (
-                        video_filter
-                        + ","
-                        + text_filter
-                        + "[outv]"
-                    )
-                else:
-                    filter_graph = (
-                        video_filter
-                        + "[outv]"
-                    )
+@app.get("/clips/{filename}")
+def clip(request: Request, filename: str):
+    found = require(request)
+    if not re.fullmatch(r"[0-9a-f]{32}_[1-3]\.mp4", filename):
+        raise HTTPException(404)
+    with db() as c:
+        job = c.execute("SELECT user_id FROM jobs WHERE id=?", (filename.split("_")[0],)).fetchone()
+    if not job or (job["user_id"] != found["id"] and found["role"] != "admin"):
+        raise HTTPException(403)
+    target = BASE / "outputs" / filename
+    if not target.is_file():
+        raise HTTPException(404)
+    return FileResponse(target, media_type="video/mp4", filename=filename)
 
-                filter_arguments = [
-                    "-filter_complex",
-                    filter_graph,
-                    "-map",
-                    "[outv]",
-                    "-map",
-          
+@app.get("/health")
+def health():
+    return {"ok":True,"service":"aadilclips.ai"}
+         
