@@ -1,1 +1,344 @@
-{% extends 'base.html' %}{% block content %}<section class="dashboard"><div class="eyebrow">YOUR WORKSPACE</div><h1>Clip <span class="red">Studio.</span></h1><p>Upload authorized videos and create 9:16 shorts. Free beta: audio-based highlight detection.</p><div class="box"><h2>New clip project</h2><form method="post" action="/jobs" enctype="multipart/form-data"><label>YouTube link (optional; disabled by default)<input name="url" type="url" placeholder="https://www.youtube.com/watch?v=..."></label><label>Or upload your video (up to 500 MB)<input name="video" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska"></label><label>Highlight mode<select name="mode"><option value="best">⚡ Best moments</option><option value="funny">😄 Funny moments (audio activity beta)</option></select></label><div class="editor-grid"><label>Clip duration (seconds, max 60)<input name="clip_length" type="number" min="5" max="60" value="30" required></label><label>Export quality<select name="quality"><option value="720p">720p HD · faster</option><option value="1080p" selected>1080p Full HD · recommended</option><option value="1440p">1440p QHD · slower</option></select></label><label>Caption style (20 options + None)<select name="caption_style">{% for style in caption_styles %}<option value="{{ style }}">{{ style }}</option>{% endfor %}</select></label><label>Caption position<select name="caption_position"><option value="bottom">Bottom</option><option value="middle">Middle</option><option value="top">Top</option></select></label><label>Caption font size<input type="number" name="caption_size" min="24" max="96" value="48"></label></div><label>Caption text (optional, up to 160 characters)<textarea name="caption_text" maxlength="160" rows="2" placeholder="Enter caption text to overlay on your clip"></textarea></label><p class="hint">Caption styles customize manually entered text. Automatic speech-to-text and word-by-word animated captions are not yet implemented.</p><button class="primary" type="submit">Generate clips →</button></form><p class="hint">Only submit videos you own or are authorized to reuse. Processing may take several minutes. Funny-moment detection is experimental, not semantic AI yet.</p></div><h2>Recent projects</h2><div id="jobs">{% for j in jobs %}<div class="job"><div><strong>{{ j.mode|capitalize }} moments</strong><small>{{ j.created_at }} · {{ j.source }}</small></div><span>{{ j.status }} · {{ j.progress }}</span>{% if j.status=='done' %}<div class="cliplinks">{% for c in j.clips|from_json %}<a href="/clips/{{ c.filename }}">Download clip {{ loop.index }} ↓</a>{% endfor %}</div>{% elif j.status=='failed' %}<small class="error">{{ j.error }}</small>{% endif %}</div>{% else %}<p class="muted">No projects yet. Your clips will appear here.</p>{% endfor %}</div></section><script>if(document.querySelector('.job')&&document.querySelector('#jobs').textContent.match(/queued|processing/))setTimeout(()=>location.reload(),8000)</script>{% endblock %}
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="dashboard">
+  <div class="eyebrow">YOUR WORKSPACE</div>
+  <h1>Clip <span class="red">Studio.</span></h1>
+  <p>Upload your video, customize your clips, and create short-form content.</p>
+
+  <div class="box">
+    <h2>New clip project</h2>
+
+    <form id="clip-form" method="post" action="/jobs" enctype="multipart/form-data">
+
+      <label>
+        YouTube link (optional)
+        <input
+          name="url"
+          type="url"
+          placeholder="https://www.youtube.com/watch?v=..."
+        >
+      </label>
+      <p class="hint">YouTube importing is currently disabled on the server by default.</p>
+
+      <label>
+        Or upload your video (up to 500 MB)
+        <input
+          id="video-upload"
+          name="video"
+          type="file"
+          accept="video/mp4,video/quicktime,video/webm,video/x-matroska"
+        >
+      </label>
+
+      <div id="video-preview-box" style="display:none;margin:20px 0;">
+        <h3>Video Preview</h3>
+        <video
+          id="video-preview"
+          controls
+          playsinline
+          preload="metadata"
+          style="width:100%;max-height:360px;background:#000;border-radius:12px;"
+        ></video>
+        <p id="video-info" class="hint"></p>
+      </div>
+
+      <div style="margin:28px 0 18px;border-top:1px solid #343037;padding-top:20px;">
+        <div class="eyebrow">CUSTOMIZE YOUR CLIPS</div>
+        <h2>The <span class="red">Look.</span></h2>
+        <p class="hint">Choose your highlight mode, duration, quality, and caption style.</p>
+      </div>
+
+      <label>
+        Highlight mode
+        <select name="mode">
+          <option value="best">⚡ Best moments</option>
+          <option value="funny">😄 Funny moments (audio activity beta)</option>
+        </select>
+      </label>
+
+      <div class="editor-grid">
+        <label>
+          Clip duration (5–60 seconds)
+          <input
+            name="clip_length"
+            type="number"
+            min="5"
+            max="60"
+            value="30"
+            required
+          >
+        </label>
+
+        <label>
+          Export quality
+          <select name="quality">
+            <option value="720p">720p HD · Faster</option>
+            <option value="1080p" selected>1080p Full HD</option>
+            <option value="1440p">1440p QHD · Slower</option>
+          </select>
+        </label>
+
+        <label>
+          Caption style
+          <select name="caption_style">
+            {% for style in caption_styles %}
+            <option value="{{ style }}">{{ style }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Caption position
+          <select name="caption_position">
+            <option value="bottom">Bottom</option>
+            <option value="middle">Middle</option>
+            <option value="top">Top</option>
+          </select>
+        </label>
+
+        <label>
+          Caption font size
+          <input
+            name="caption_size"
+            type="number"
+            min="24"
+            max="96"
+            value="48"
+          >
+        </label>
+      </div>
+
+      <label>
+        Caption text (optional)
+        <textarea
+          name="caption_text"
+          maxlength="160"
+          rows="2"
+          placeholder="Enter text to display on your clips"
+        ></textarea>
+      </label>
+
+      <p class="hint">
+        Captions currently support manually entered text.
+        Automatic speech-to-text and animated word-by-word captions
+        are not yet available.
+      </p>
+
+      <button id="generate-button" class="primary" type="submit">
+        ⚡ Find Best Moments
+      </button>
+    </form>
+
+    <div
+      id="generation-status"
+      role="status"
+      aria-live="polite"
+      style="display:none;margin-top:22px;padding:18px;border:1px solid #ff3648;border-radius:12px;background:#231419;"
+    >
+      <strong id="generation-title">Preparing your project...</strong>
+      <p id="generation-message" class="hint">
+        Please wait while your video uploads.
+      </p>
+
+      <div style="height:8px;background:#383038;border-radius:8px;overflow:hidden;">
+        <div
+          id="generation-bar"
+          style="width:10%;height:100%;background:#ff3648;transition:width .4s;"
+        ></div>
+      </div>
+    </div>
+
+    <p class="hint">
+      Only upload videos you own or have permission to reuse.
+      Processing may take several minutes.
+      Highlight detection currently uses audio activity, not semantic AI.
+    </p>
+  </div>
+
+  <h2>Recent projects</h2>
+
+  <div id="jobs">
+    {% for j in jobs %}
+    <div class="job">
+      <div>
+        <strong>{{ j.mode|capitalize }} moments</strong>
+        <small>{{ j.created_at }} · {{ j.source }}</small>
+      </div>
+
+      <span>{{ j.status }} · {{ j.progress }}</span>
+
+      {% if j.status == 'done' %}
+      <div class="cliplinks">
+        {% for c in j.clips|from_json %}
+        <a href="/clips/{{ c.filename }}">
+          Download clip {{ loop.index }} ↓
+        </a>
+        {% endfor %}
+      </div>
+
+      {% elif j.status == 'failed' %}
+      <small class="error">{{ j.error }}</small>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <p class="muted">No projects yet. Your clips will appear here.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+(function () {
+  const form = document.getElementById('clip-form');
+  const upload = document.getElementById('video-upload');
+  const previewBox = document.getElementById('video-preview-box');
+  const preview = document.getElementById('video-preview');
+  const videoInfo = document.getElementById('video-info');
+
+  const status = document.getElementById('generation-status');
+  const title = document.getElementById('generation-title');
+  const message = document.getElementById('generation-message');
+  const bar = document.getElementById('generation-bar');
+  const button = document.getElementById('generate-button');
+
+  let previewURL = null;
+
+  upload.addEventListener('change', function () {
+    if (previewURL) {
+      URL.revokeObjectURL(previewURL);
+      previewURL = null;
+    }
+
+    const file = upload.files[0];
+
+    if (!file) {
+      previewBox.style.display = 'none';
+      preview.removeAttribute('src');
+      preview.load();
+      return;
+    }
+
+    previewURL = URL.createObjectURL(file);
+    preview.src = previewURL;
+    previewBox.style.display = 'block';
+
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    videoInfo.textContent = file.name + ' · ' + sizeMB + ' MB';
+  });
+
+  function showStatus(heading, detail, width) {
+    status.style.display = 'block';
+    title.textContent = heading;
+    message.textContent = detail;
+    bar.style.width = width + '%';
+  }
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+
+    const file = upload.files[0];
+    const url = form.querySelector('[name="url"]').value.trim();
+
+    if (!file && !url) {
+      alert('Please upload a video or enter a YouTube URL.');
+      return;
+    }
+
+    if (file && file.size > 500 * 1024 * 1024) {
+      alert('Video must be smaller than 500 MB.');
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Uploading...';
+
+    showStatus(
+      'Uploading your video...',
+      'Please keep this page open until the upload finishes.',
+      10
+    );
+
+    try {
+      const response = await fetch('/jobs', {
+        method: 'POST',
+        body: new FormData(form),
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Unable to create your project.';
+
+        try {
+          const data = await response.json();
+          errorMessage = data.detail || errorMessage;
+        } catch (e) {}
+
+        throw new Error(errorMessage);
+      }
+
+      showStatus(
+        'Project submitted!',
+        'Your video is queued for processing.',
+        35
+      );
+
+      window.location.assign('/dashboard');
+
+    } catch (error) {
+      showStatus(
+        'Upload failed',
+        error.message || 'Please try again.',
+        0
+      );
+
+      button.disabled = false;
+      button.textContent = '⚡ Find Best Moments';
+    }
+  });
+
+  async function checkProjects() {
+    try {
+      const response = await fetch('/api/jobs', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      if (!response.ok) return;
+
+      const projects = await response.json();
+      const active = projects.find(function (job) {
+        return job.status === 'queued' || job.status === 'processing';
+      });
+
+      if (active) {
+        showStatus(
+          'Generating your clips...',
+          active.progress || 'Processing video...',
+          active.status === 'queued' ? 35 : 60
+        );
+
+        setTimeout(checkProjects, 5000);
+      } else if (projects.length > 0) {
+        if (projects[0].status === 'done' || projects[0].status === 'failed') {
+          if (document.querySelector('.job')) {
+            const firstJobText = document.querySelector('.job').textContent;
+
+            if (
+              firstJobText.includes('queued') ||
+              firstJobText.includes('processing')
+            ) {
+              window.location.reload();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Network may temporarily be unavailable.
+    }
+  }
+
+  checkProjects();
+})();
+</script>
+{% endblock %}
