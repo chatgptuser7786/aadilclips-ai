@@ -1,4 +1,6 @@
 
+/* AADILCLIPS.AI - COMPLETE STYLESHEET */
+
 :root {
   font-family: Inter, ui-sans-serif, system-ui, Arial, sans-serif;
   color: #f6f6f8;
@@ -6,27 +8,27 @@
   font-synthesis: none;
 }
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
 html {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 body {
   width: 100%;
   min-width: 0;
-  max-width: none;
+  max-width: 100%;
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
   background: radial-gradient(
     ellipse at 80% 0%,
     #36080d 0%,
@@ -39,10 +41,7 @@ a {
   text-decoration: none;
 }
 
-button,
-input,
-select,
-textarea {
+button, input, select, textarea {
   font: inherit;
 }
 
@@ -83,8 +82,7 @@ header {
   border: 1px solid #93202b;
 }
 
-.red,
-em {
+.red, em {
   color: #ff3648;
 }
 
@@ -107,8 +105,7 @@ nav a:hover {
   color: #ff5260;
 }
 
-.navbtn,
-.secondary {
+.navbtn, .secondary {
   display: inline-block;
   padding: 12px 17px;
   border: 1px solid #55505b;
@@ -235,17 +232,14 @@ nav a:hover {
 
 /* SECTIONS */
 
-.features,
-.about,
-.dashboard {
+.features, .about, .dashboard {
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
   padding: 55px 24px;
 }
 
-.features h2,
-.about h2 {
+.features h2, .about h2 {
   font-size: clamp(30px, 5vw, 47px);
   letter-spacing: -2px;
 }
@@ -256,8 +250,7 @@ nav a:hover {
   gap: 18px;
 }
 
-.feature-grid article,
-.box {
+.feature-grid article, .box {
   padding: 25px;
   background: #17161b;
   border: 1px solid #343037;
@@ -317,8 +310,7 @@ footer {
   padding: 34px;
 }
 
-.auth h1,
-.dashboard h1 {
+.auth h1, .dashboard h1 {
   margin: 15px 0;
   font-size: 44px;
   letter-spacing: -2px;
@@ -335,9 +327,7 @@ form label {
   font-weight: 650;
 }
 
-input,
-select,
-textarea {
+input, select, textarea {
   display: block;
   width: 100%;
   margin-top: 8px;
@@ -349,9 +339,7 @@ textarea {
   outline: none;
 }
 
-input:focus,
-select:focus,
-textarea:focus {
+input:focus, select:focus, textarea:focus {
   border-color: #f54258;
 }
 
@@ -432,8 +420,7 @@ table {
   background: #17161b;
 }
 
-th,
-td {
+th, td {
   padding: 14px;
   border-bottom: 1px solid #38323a;
   text-align: left;
@@ -495,9 +482,7 @@ td form {
     padding: 17px;
   }
 
-  .feature-grid,
-  .stats,
-  .editor-grid {
+  .feature-grid, .stats, .editor-grid {
     grid-template-columns: 1fr;
   }
 
@@ -521,47 +506,54 @@ td form {
   }
 }
 
-/* ======================================
-   AADILCLIPS DASHBOARD FULL WIDTH FIX
-   Applies only to dashboard pages
-   ====================================== */
+/* ==========================================
+   DASHBOARD FULL WIDTH AND OVERFLOW REPAIR
+   ========================================== */
 
+html:has(.studio-v2),
 body:has(.studio-v2) {
   width: 100% !important;
+  max-width: 100% !important;
   min-width: 0 !important;
-  max-width: none !important;
   margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+}
+
+body:has(.studio-v2) > header,
+body:has(.studio-v2) > main,
+body:has(.studio-v2) > footer {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
 }
 
 body:has(.studio-v2) > header {
-  width: 100% !important;
-  max-width: none !important;
-  min-width: 0 !important;
   margin: 0 !important;
 }
 
 body:has(.studio-v2) > main {
   display: block !important;
-  width: 100% !important;
-  max-width: none !important;
-  min-width: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
 body:has(.studio-v2) .dashboard.studio-v2 {
-  display: block;
+  display: block !important;
   width: 100% !important;
-  max-width: none !important;
+  max-width: 100% !important;
   min-width: 0 !important;
   margin: 0 !important;
-  padding: 40px clamp(16px, 3vw, 48px);
+  padding: 40px clamp(16px, 3vw, 48px) !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
 }
 
 body:has(.studio-v2) .dashboard.studio-v2 > .box,
 body:has(.studio-v2) .dashboard.studio-v2 > #jobs {
   width: 100% !important;
-  max-width: none !important;
+  max-width: 100% !important;
   min-width: 0 !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
@@ -569,23 +561,27 @@ body:has(.studio-v2) .dashboard.studio-v2 > #jobs {
 
 body:has(.studio-v2) .dashboard.studio-v2 form,
 body:has(.studio-v2) .dashboard.studio-v2 .preview-panel,
-body:has(.studio-v2) .dashboard.studio-v2 .settings-section {
-  max-width: 100%;
-  min-width: 0;
+body:has(.studio-v2) .dashboard.studio-v2 .preview-stage,
+body:has(.studio-v2) .dashboard.studio-v2 .settings-section,
+body:has(.studio-v2) .dashboard.studio-v2 .editor-grid,
+body:has(.studio-v2) .dashboard.studio-v2 .extras-grid {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
-@media (max-width: 680px) {
-  body:has(.studio-v2) .dashboard.studio-v2 {
-    padding: 28px 15px;
-  }
-
-  body:has(.studio-v2) .dashboard.studio-v2 > .box {
-    padding: 16px;
-  }
+body:has(.studio-v2) .dashboard.studio-v2 .preview-frame {
+  max-width: 100% !important;
 }
-/* Prevent hidden resolution inputs from stretching the page */
+
+/* IMPORTANT: RADIO INPUT WIDTH FIX */
+
 body:has(.studio-v2) .quality-row {
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -593,11 +589,17 @@ body:has(.studio-v2) .quality-row {
 
 body:has(.studio-v2) .quality-row label {
   position: relative;
-  width: auto;
+  display: block;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  margin: 0;
+  cursor: pointer;
 }
 
 body:has(.studio-v2) .quality-row input[type="radio"] {
   position: absolute !important;
+  display: block !important;
   width: 1px !important;
   height: 1px !important;
   min-width: 0 !important;
@@ -605,11 +607,72 @@ body:has(.studio-v2) .quality-row input[type="radio"] {
   margin: 0 !important;
   padding: 0 !important;
   opacity: 0 !important;
+  overflow: hidden !important;
 }
 
+body:has(.studio-v2) .quality-row span {
+  display: block;
+  padding: 12px 20px;
+  border: 2px solid #39313b;
+  border-radius: 10px;
+  background: #121116;
+}
+
+body:has(.studio-v2) .quality-row input:checked + span {
+  border-color: #ff3648;
+  background: #28151d;
+}
+
+/* CAPTION GALLERY MUST SCROLL INSIDE ITSELF */
+
 body:has(.studio-v2) .caption-gallery {
+  display: flex !important;
+  flex-wrap: nowrap !important;
   width: 100% !important;
-  max-width: 100% !important;
   min-width: 0 !important;
+  max-width: 100% !important;
   overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+body:has(.studio-v2) .caption-style-card {
+  flex: 0 0 135px !important;
+  min-width: 0 !important;
+}
+
+body:has(.studio-v2) .option-row {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+body:has(.studio-v2) .editor-grid,
+body:has(.studio-v2) .extras-grid {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* MOBILE DASHBOARD */
+
+@media (max-width: 680px) {
+  body:has(.studio-v2) .dashboard.studio-v2 {
+    padding: 28px 15px !important;
+  }
+
+  body:has(.studio-v2) .dashboard.studio-v2 > .box {
+    padding: 16px;
+  }
+
+  body:has(.studio-v2) .editor-grid,
+  body:has(.studio-v2) .extras-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:has(.studio-v2) .preview-stage {
+    max-width: 100%;
+    overflow: hidden;
+  }
 }
