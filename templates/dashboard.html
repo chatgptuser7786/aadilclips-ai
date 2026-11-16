@@ -1,344 +1,174 @@
-{% extends 'base.html' %}
 
+{% extends 'base.html' %}
 {% block content %}
 <section class="dashboard">
   <div class="eyebrow">YOUR WORKSPACE</div>
   <h1>Clip <span class="red">Studio.</span></h1>
-  <p>Upload your video, customize your clips, and create short-form content.</p>
-
+  <p>Upload your video, customize the look, and create short-form clips.</p>
   <div class="box">
     <h2>New clip project</h2>
-
     <form id="clip-form" method="post" action="/jobs" enctype="multipart/form-data">
-
-      <label>
-        YouTube link (optional)
-        <input
-          name="url"
-          type="url"
-          placeholder="https://www.youtube.com/watch?v=..."
-        >
+      <label>YouTube link (optional)
+        <input name="url" type="url" placeholder="https://www.youtube.com/watch?v=...">
       </label>
-      <p class="hint">YouTube importing is currently disabled on the server by default.</p>
-
-      <label>
-        Or upload your video (up to 500 MB)
-        <input
-          id="video-upload"
-          name="video"
-          type="file"
-          accept="video/mp4,video/quicktime,video/webm,video/x-matroska"
-        >
+      <p class="hint">YouTube importing is disabled by default on this server.</p>
+      <label>Or upload your video (up to 500 MB)
+        <input id="video-upload" name="video" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska">
       </label>
-
-      <div id="video-preview-box" style="display:none;margin:20px 0;">
-        <h3>Video Preview</h3>
-        <video
-          id="video-preview"
-          controls
-          playsinline
-          preload="metadata"
-          style="width:100%;max-height:360px;background:#000;border-radius:12px;"
-        ></video>
+      <div id="video-preview-box" style="display:none;margin:20px 0">
+        <h3>Video preview</h3>
+        <div class="look-video-wrap">
+          <video id="video-preview" controls playsinline preload="metadata"></video>
+          <div id="caption-overlay" class="caption-overlay" aria-hidden="true"></div>
+        </div>
         <p id="video-info" class="hint"></p>
       </div>
-
-      <div style="margin:28px 0 18px;border-top:1px solid #343037;padding-top:20px;">
+      <div class="look-section-heading">
         <div class="eyebrow">CUSTOMIZE YOUR CLIPS</div>
         <h2>The <span class="red">Look.</span></h2>
-        <p class="hint">Choose your highlight mode, duration, quality, and caption style.</p>
+        <p class="hint">Tap a caption card to select its style and preview it on your video.</p>
       </div>
-
-      <label>
-        Highlight mode
+      <label>Highlight mode
         <select name="mode">
           <option value="best">⚡ Best moments</option>
           <option value="funny">😄 Funny moments (audio activity beta)</option>
         </select>
       </label>
-
       <div class="editor-grid">
-        <label>
-          Clip duration (5–60 seconds)
-          <input
-            name="clip_length"
-            type="number"
-            min="5"
-            max="60"
-            value="30"
-            required
-          >
+        <label>Clip duration (5–60 seconds)
+          <input name="clip_length" type="number" min="5" max="60" value="30" required>
         </label>
-
-        <label>
-          Export quality
+        <label>Export quality
           <select name="quality">
             <option value="720p">720p HD · Faster</option>
             <option value="1080p" selected>1080p Full HD</option>
             <option value="1440p">1440p QHD · Slower</option>
           </select>
         </label>
-
-        <label>
-          Caption style
-          <select name="caption_style">
-            {% for style in caption_styles %}
-            <option value="{{ style }}">{{ style }}</option>
-            {% endfor %}
-          </select>
-        </label>
-
-        <label>
-          Caption position
-          <select name="caption_position">
+      </div>
+      <div class="caption-picker-title"><strong>Caption styles</strong><span class="hint">Swipe to browse · Tap to select</span></div>
+      <input type="hidden" name="caption_style" id="caption-style" value="None">
+      <div class="caption-cards" id="caption-cards" role="group" aria-label="Choose caption style">
+        {% for style in caption_styles %}
+        <button type="button" class="caption-card{% if style == 'None' %} selected{% endif %}" data-style="{{ style }}" aria-pressed="{{ 'true' if style == 'None' else 'false' }}">
+          <span class="caption-card-preview" data-style="{{ style }}"><span>{% if style == 'None' %}NO CAPTIONS{% else %}VIRAL CAPTIONS{% endif %}</span></span>
+          <span class="caption-card-name">{{ style }}</span>
+        </button>
+        {% endfor %}
+      </div>
+      <div class="editor-grid">
+        <label>Caption position
+          <select name="caption_position" id="caption-position">
             <option value="bottom">Bottom</option>
             <option value="middle">Middle</option>
             <option value="top">Top</option>
           </select>
         </label>
-
-        <label>
-          Caption font size
-          <input
-            name="caption_size"
-            type="number"
-            min="24"
-            max="96"
-            value="48"
-          >
+        <label>Caption font size
+          <input name="caption_size" id="caption-size" type="number" min="24" max="96" value="48">
         </label>
       </div>
-
-      <label>
-        Caption text (optional)
-        <textarea
-          name="caption_text"
-          maxlength="160"
-          rows="2"
-          placeholder="Enter text to display on your clips"
-        ></textarea>
+      <label>Caption text (optional, max 160 characters)
+        <textarea name="caption_text" id="caption-text" maxlength="160" rows="2" placeholder="Type text to preview and add to your clip"></textarea>
       </label>
-
-      <p class="hint">
-        Captions currently support manually entered text.
-        Automatic speech-to-text and animated word-by-word captions
-        are not yet available.
-      </p>
-
-      <button id="generate-button" class="primary" type="submit">
-        ⚡ Find Best Moments
-      </button>
+      <p class="hint">Live preview is an approximation. Current backend overlays manually entered static text, not automatic speech captions or animated word-by-word subtitles. Some card styles are visual examples and may render similarly in exported clips.</p>
+      <button id="generate-button" class="primary" type="submit">⚡ Find Best Moments</button>
     </form>
-
-    <div
-      id="generation-status"
-      role="status"
-      aria-live="polite"
-      style="display:none;margin-top:22px;padding:18px;border:1px solid #ff3648;border-radius:12px;background:#231419;"
-    >
+    <div id="generation-status" role="status" aria-live="polite" style="display:none;margin-top:22px;padding:18px;border:1px solid #ff3648;border-radius:12px;background:#231419">
       <strong id="generation-title">Preparing your project...</strong>
-      <p id="generation-message" class="hint">
-        Please wait while your video uploads.
-      </p>
-
-      <div style="height:8px;background:#383038;border-radius:8px;overflow:hidden;">
-        <div
-          id="generation-bar"
-          style="width:10%;height:100%;background:#ff3648;transition:width .4s;"
-        ></div>
-      </div>
+      <p id="generation-message" class="hint">Please wait.</p>
+      <div style="height:8px;background:#383038;border-radius:8px;overflow:hidden"><div id="generation-bar" style="width:10%;height:100%;background:#ff3648;transition:width .4s"></div></div>
     </div>
-
-    <p class="hint">
-      Only upload videos you own or have permission to reuse.
-      Processing may take several minutes.
-      Highlight detection currently uses audio activity, not semantic AI.
-    </p>
+    <p class="hint">Only upload videos you own or are authorized to reuse. Highlight detection currently uses audio activity, not semantic AI.</p>
   </div>
-
   <h2>Recent projects</h2>
-
   <div id="jobs">
     {% for j in jobs %}
     <div class="job">
-      <div>
-        <strong>{{ j.mode|capitalize }} moments</strong>
-        <small>{{ j.created_at }} · {{ j.source }}</small>
-      </div>
-
+      <div><strong>{{ j.mode|capitalize }} moments</strong><small>{{ j.created_at }} · {{ j.source }}</small></div>
       <span>{{ j.status }} · {{ j.progress }}</span>
-
       {% if j.status == 'done' %}
-      <div class="cliplinks">
-        {% for c in j.clips|from_json %}
-        <a href="/clips/{{ c.filename }}">
-          Download clip {{ loop.index }} ↓
-        </a>
-        {% endfor %}
-      </div>
-
-      {% elif j.status == 'failed' %}
-      <small class="error">{{ j.error }}</small>
-      {% endif %}
+      <div class="cliplinks">{% for c in j.clips|from_json %}<a href="/clips/{{ c.filename }}">Download clip {{ loop.index }} ↓</a>{% endfor %}</div>
+      {% elif j.status == 'failed' %}<small class="error">{{ j.error }}</small>{% endif %}
     </div>
-
-    {% else %}
-    <p class="muted">No projects yet. Your clips will appear here.</p>
-    {% endfor %}
+    {% else %}<p class="muted">No projects yet. Your clips will appear here.</p>{% endfor %}
   </div>
 </section>
-
+<style>
+.look-section-heading{border-top:1px solid #343037;margin:28px 0 18px;padding-top:20px}.look-section-heading h2{margin:10px 0}.caption-picker-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 12px;font-size:14px}.caption-cards{display:grid;grid-auto-flow:column;grid-auto-columns:145px;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:3px 2px 14px;scrollbar-color:#6b3540 #17161b}.caption-card{display:flex;flex-direction:column;gap:8px;min-width:0;padding:8px;background:#141318;color:#ddd;border:2px solid #353039;border-radius:13px;cursor:pointer;text-align:center;scroll-snap-align:start}.caption-card.selected{border-color:#ff3648;box-shadow:0 0 0 1px #ff36484d}.caption-card:focus-visible{outline:2px solid white;outline-offset:2px}.caption-card-preview{display:flex;align-items:center;justify-content:center;min-height:84px;padding:8px;border-radius:8px;background:#08080b;overflow:hidden}.caption-card-preview span{font-size:14px;font-weight:900;line-height:1.15;text-align:center;overflow-wrap:anywhere}.caption-card-name{font-size:11px;line-height:1.3;min-height:28px;display:flex;align-items:center;justify-content:center}.caption-card-preview[data-style="None"] span{color:#85818a;font-weight:500;font-size:12px}.caption-card-preview[data-style="Karaoke Yellow"] span,.caption-card-preview[data-style="Classic Yellow"] span{color:#ffe14a}.caption-card-preview[data-style="Neon Red"] span{color:#ff3648;text-shadow:0 0 10px #ff3648}.caption-card-preview[data-style="Neon Blue"] span{color:#3de5ff;text-shadow:0 0 10px #3de5ff}.caption-card-preview[data-style="Gaming Green"] span{color:#62ff69}.caption-card-preview[data-style="Gold Luxe"] span{color:#ffcc65}.caption-card-preview[data-style="Pink Glow"] span{color:#ff74cd;text-shadow:0 0 9px #ff74cd}.caption-card-preview[data-style="Purple Glow"] span{color:#bb8aff;text-shadow:0 0 9px #bb8aff}.caption-card-preview[data-style="Orange Punch"] span{color:#ffad4e}.caption-card-preview[data-style="Minimal White"] span,.caption-card-preview[data-style="Instagram Clean"] span{color:white;font-weight:600}.caption-card-preview[data-style="Cinematic"] span{font-family:Georgia,serif;letter-spacing:2px}.caption-card-preview[data-style="Comic Pop"] span{color:#ffe14a;transform:rotate(-5deg);text-shadow:2px 2px #f43649}.caption-card-preview[data-style="Retro Pixel"] span{font-family:monospace;letter-spacing:1px}.caption-card-preview[data-style="Subtitle Bar"] span{background:#242428;padding:6px;color:white}.caption-card-preview[data-style="High Contrast"] span{color:white;background:#000;text-shadow:1px 1px black}.caption-card-preview[data-style="Outline Black"] span{text-shadow:2px 2px black,-2px -2px black,2px -2px black,-2px 2px black}.caption-card-preview[data-style="Shadow White"] span{text-shadow:3px 3px 3px #777}.caption-card-preview[data-style="Hormozi Bold"] span,.caption-card-preview[data-style="TikTok Bold"] span{font-size:17px;color:white;text-shadow:2px 2px #f52b42}.look-video-wrap{position:relative;max-width:460px;margin:auto;background:black;border-radius:12px;overflow:hidden}.look-video-wrap video{width:100%;max-height:460px;display:block;background:#000}.caption-overlay{position:absolute;left:5%;right:5%;bottom:20%;text-align:center;pointer-events:none;overflow-wrap:anywhere;font-weight:900;font-size:22px;color:white;text-shadow:2px 2px 3px #000,-1px -1px #000;display:none}.caption-overlay[data-style="Karaoke Yellow"],.caption-overlay[data-style="Classic Yellow"]{color:#ffe14a}.caption-overlay[data-style="Neon Red"]{color:#ff3648}.caption-overlay[data-style="Neon Blue"]{color:#3de5ff}.caption-overlay[data-style="Gaming Green"]{color:#62ff69}.caption-overlay[data-style="Gold Luxe"]{color:#ffcc65}.caption-overlay[data-style="Pink Glow"]{color:#ff74cd}.caption-overlay[data-style="Purple Glow"]{color:#bb8aff}.caption-overlay[data-style="Orange Punch"]{color:#ffad4e}.caption-overlay[data-style="Subtitle Bar"]{background:#000a;padding:7px}.caption-overlay[data-style="Cinematic"]{font-family:Georgia,serif;letter-spacing:2px}.caption-overlay[data-style="Retro Pixel"]{font-family:monospace}.caption-overlay[data-style="Comic Pop"]{transform:rotate(-3deg)}@media(max-width:680px){.caption-cards{grid-auto-columns:128px;gap:9px}.caption-card-preview{min-height:76px}.caption-picker-title{align-items:flex-start;flex-direction:column;gap:2px}}
+</style>
 <script>
-(function () {
-  const form = document.getElementById('clip-form');
-  const upload = document.getElementById('video-upload');
-  const previewBox = document.getElementById('video-preview-box');
-  const preview = document.getElementById('video-preview');
-  const videoInfo = document.getElementById('video-info');
-
-  const status = document.getElementById('generation-status');
-  const title = document.getElementById('generation-title');
-  const message = document.getElementById('generation-message');
-  const bar = document.getElementById('generation-bar');
-  const button = document.getElementById('generate-button');
-
-  let previewURL = null;
-
-  upload.addEventListener('change', function () {
-    if (previewURL) {
-      URL.revokeObjectURL(previewURL);
-      previewURL = null;
-    }
-
-    const file = upload.files[0];
-
-    if (!file) {
-      previewBox.style.display = 'none';
-      preview.removeAttribute('src');
-      preview.load();
-      return;
-    }
-
-    previewURL = URL.createObjectURL(file);
-    preview.src = previewURL;
-    previewBox.style.display = 'block';
-
-    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-    videoInfo.textContent = file.name + ' · ' + sizeMB + ' MB';
+(function(){
+ const form=document.getElementById('clip-form');
+ const upload=document.getElementById('video-upload');
+ const previewBox=document.getElementById('video-preview-box');
+ const preview=document.getElementById('video-preview');
+ const videoInfo=document.getElementById('video-info');
+ const overlay=document.getElementById('caption-overlay');
+ const styleInput=document.getElementById('caption-style');
+ const captionText=document.getElementById('caption-text');
+ const captionSize=document.getElementById('caption-size');
+ const captionPosition=document.getElementById('caption-position');
+ const status=document.getElementById('generation-status');
+ const title=document.getElementById('generation-title');
+ const message=document.getElementById('generation-message');
+ const bar=document.getElementById('generation-bar');
+ const button=document.getElementById('generate-button');
+ let previewURL=null;
+ function updateCaptionPreview(){
+  const style=styleInput.value;
+  const text=captionText.value.trim();
+  overlay.dataset.style=style;
+  overlay.textContent=text;
+  overlay.style.display=style!=='None'&&text&&previewBox.style.display!=='none'?'block':'none';
+  overlay.style.fontSize=Math.max(14,Math.min(38,Number(captionSize.value||48)*.48))+'px';
+  overlay.style.top=captionPosition.value==='top'?'15%':captionPosition.value==='middle'?'45%':'auto';
+  overlay.style.bottom=captionPosition.value==='bottom'?'20%':'auto';
+ }
+ document.querySelectorAll('.caption-card').forEach(function(card){
+  card.addEventListener('click',function(){
+   styleInput.value=card.dataset.style;
+   document.querySelectorAll('.caption-card').forEach(function(other){other.classList.remove('selected');other.setAttribute('aria-pressed','false')});
+   card.classList.add('selected');card.setAttribute('aria-pressed','true');
+   updateCaptionPreview();
   });
-
-  function showStatus(heading, detail, width) {
-    status.style.display = 'block';
-    title.textContent = heading;
-    message.textContent = detail;
-    bar.style.width = width + '%';
-  }
-
-  form.addEventListener('submit', async function (event) {
-    event.preventDefault();
-
-    const file = upload.files[0];
-    const url = form.querySelector('[name="url"]').value.trim();
-
-    if (!file && !url) {
-      alert('Please upload a video or enter a YouTube URL.');
-      return;
-    }
-
-    if (file && file.size > 500 * 1024 * 1024) {
-      alert('Video must be smaller than 500 MB.');
-      return;
-    }
-
-    button.disabled = true;
-    button.textContent = 'Uploading...';
-
-    showStatus(
-      'Uploading your video...',
-      'Please keep this page open until the upload finishes.',
-      10
-    );
-
-    try {
-      const response = await fetch('/jobs', {
-        method: 'POST',
-        body: new FormData(form),
-        credentials: 'same-origin'
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Unable to create your project.';
-
-        try {
-          const data = await response.json();
-          errorMessage = data.detail || errorMessage;
-        } catch (e) {}
-
-        throw new Error(errorMessage);
-      }
-
-      showStatus(
-        'Project submitted!',
-        'Your video is queued for processing.',
-        35
-      );
-
-      window.location.assign('/dashboard');
-
-    } catch (error) {
-      showStatus(
-        'Upload failed',
-        error.message || 'Please try again.',
-        0
-      );
-
-      button.disabled = false;
-      button.textContent = '⚡ Find Best Moments';
-    }
-  });
-
-  async function checkProjects() {
-    try {
-      const response = await fetch('/api/jobs', {
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-
-      if (!response.ok) return;
-
-      const projects = await response.json();
-      const active = projects.find(function (job) {
-        return job.status === 'queued' || job.status === 'processing';
-      });
-
-      if (active) {
-        showStatus(
-          'Generating your clips...',
-          active.progress || 'Processing video...',
-          active.status === 'queued' ? 35 : 60
-        );
-
-        setTimeout(checkProjects, 5000);
-      } else if (projects.length > 0) {
-        if (projects[0].status === 'done' || projects[0].status === 'failed') {
-          if (document.querySelector('.job')) {
-            const firstJobText = document.querySelector('.job').textContent;
-
-            if (
-              firstJobText.includes('queued') ||
-              firstJobText.includes('processing')
-            ) {
-              window.location.reload();
-            }
-          }
-        }
-      }
-    } catch (error) {
-      // Network may temporarily be unavailable.
-    }
-  }
-
-  checkProjects();
+ });
+ [captionText,captionSize,captionPosition].forEach(function(el){el.addEventListener('input',updateCaptionPreview);el.addEventListener('change',updateCaptionPreview)});
+ upload.addEventListener('change',function(){
+  if(previewURL){URL.revokeObjectURL(previewURL);previewURL=null}
+  const file=upload.files[0];
+  if(!file){previewBox.style.display='none';preview.removeAttribute('src');preview.load();updateCaptionPreview();return}
+  previewURL=URL.createObjectURL(file);preview.src=previewURL;previewBox.style.display='block';
+  videoInfo.textContent=file.name+' · '+(file.size/(1024*1024)).toFixed(1)+' MB';
+  updateCaptionPreview();
+ });
+ function showStatus(heading,detail,width){status.style.display='block';title.textContent=heading;message.textContent=detail;bar.style.width=width+'%'}
+ form.addEventListener('submit',async function(event){
+  event.preventDefault();
+  const file=upload.files[0];const url=form.querySelector('[name="url"]').value.trim();
+  if(!file&&!url){alert('Please upload a video or enter a YouTube URL.');return}
+  if(file&&file.size>500*1024*1024){alert('Video must be smaller than 500 MB.');return}
+  button.disabled=true;button.textContent='Uploading...';showStatus('Uploading your video...','Keep this page open until upload finishes.',10);
+  try{
+   const response=await fetch('/jobs',{method:'POST',body:new FormData(form),credentials:'same-origin'});
+   if(!response.ok){let msg='Unable to create your project.';try{const data=await response.json();msg=data.detail||msg}catch(_){}throw new Error(msg)}
+   showStatus('Project submitted!','Your video is queued for processing.',35);window.location.assign('/dashboard');
+  }catch(error){showStatus('Upload failed',error.message||'Please try again.',0);button.disabled=false;button.textContent='⚡ Find Best Moments'}
+ });
+ async function checkProjects(){
+  try{
+   const response=await fetch('/api/jobs',{credentials:'same-origin',cache:'no-store'});
+   if(!response.ok)return;
+   const projects=await response.json();
+   const active=projects.find(function(job){return job.status==='queued'||job.status==='processing'});
+   if(active){showStatus('Generating your clips...',active.progress||'Processing video...',active.status==='queued'?35:60);setTimeout(checkProjects,5000)}
+   else if(projects.length&&document.querySelector('.job')){
+    const firstJobText=document.querySelector('.job').textContent;
+    if(/queued|processing/i.test(firstJobText))window.location.reload();
+   }
+  }catch(_){setTimeout(checkProjects,10000)}
+ }
+ checkProjects();
 })();
 </script>
 {% endblock %}
