@@ -17,15 +17,14 @@
 
       <label>
         YouTube video URL
-        <input name="url" type="url"
-          placeholder="Paste YouTube video link">
+        <input name="url" type="url" placeholder="Paste YouTube video link">
       </label>
       <p class="hint">YouTube importing is currently disabled on the server.</p>
 
       <label>
         Or upload your video
         <input id="video-upload" name="video" type="file"
-          accept=".mp4,.mov,.mkv,.webm,video/*">
+               accept=".mp4,.mov,.mkv,.webm,video/*">
       </label>
       <p class="hint">Maximum upload size: 500 MB.</p>
 
@@ -42,8 +41,7 @@
 
         <div class="preview-stage">
           <div id="preview-frame" class="preview-frame ratio-vertical">
-            <video id="preview-video" controls playsinline
-              preload="metadata"></video>
+            <video id="preview-video" controls playsinline preload="metadata"></video>
             <div id="preview-caption" class="preview-caption"></div>
             <div id="preview-placeholder" class="preview-placeholder">
               <span class="preview-play">▶</span>
@@ -54,7 +52,7 @@
         </div>
 
         <p id="video-info" class="hint" style="text-align:center"></p>
-        <p class="hint">This is a visual preview. New crop and shape settings are not yet applied to exported clips.</p>
+        <p class="hint">Preview is approximate. Exported videos use the selected shape and cropping settings.</p>
       </div>
 
       <div class="settings-section">
@@ -62,55 +60,47 @@
         <div class="option-row" id="ratio-options">
           <button type="button" class="option-card active" data-ratio="9:16">
             <span class="ratio-symbol vertical"></span>
-            <strong>9:16</strong>
-            <small>Shorts</small>
+            <strong>9:16</strong><small>Shorts</small>
           </button>
           <button type="button" class="option-card" data-ratio="1:1">
             <span class="ratio-symbol square"></span>
-            <strong>1:1</strong>
-            <small>Square</small>
+            <strong>1:1</strong><small>Square</small>
           </button>
           <button type="button" class="option-card" data-ratio="16:9">
             <span class="ratio-symbol landscape"></span>
-            <strong>16:9</strong>
-            <small>Wide</small>
+            <strong>16:9</strong><small>Wide</small>
           </button>
         </div>
-        <input type="hidden" id="video-ratio" value="9:16">
+        <input type="hidden" name="video_ratio" id="video-ratio" value="9:16">
       </div>
 
       <div class="settings-section">
         <h3>Video Cropping</h3>
         <div class="option-row crop-options" id="crop-options">
           <button type="button" class="option-card active" data-crop="fill">
-            <span class="crop-icon">▣</span>
-            <strong>Fill</strong>
+            <span class="crop-icon">▣</span><strong>Fill</strong>
           </button>
           <button type="button" class="option-card" data-crop="fit">
-            <span class="crop-icon">▢</span>
-            <strong>Fit</strong>
+            <span class="crop-icon">▢</span><strong>Fit</strong>
           </button>
           <button type="button" class="option-card" data-crop="blur">
-            <span class="crop-icon">▧</span>
-            <strong>Fit + Blur</strong>
+            <span class="crop-icon">▧</span><strong>Fit + Blur</strong>
           </button>
           <button type="button" class="option-card" data-crop="manual">
-            <span class="crop-icon">✥</span>
-            <strong>Choose</strong>
+            <span class="crop-icon">✥</span><strong>Choose</strong>
           </button>
-          <button type="button" class="option-card" disabled
-            title="Speaker tracking is not implemented">
+          <button type="button" class="option-card" disabled>
             <span class="crop-icon">◎</span>
-            <strong>Follow Speaker</strong>
-            <small>Coming soon</small>
+            <strong>Follow Speaker</strong><small>Coming soon</small>
           </button>
         </div>
-        <p class="hint">Crop selection currently changes the preview only. Choose uses center framing until manual positioning is implemented.</p>
+        <input type="hidden" name="crop_mode" id="crop-mode" value="fill">
+        <p class="hint">Choose currently uses center framing. Manual positioning and speaker tracking are coming later.</p>
       </div>
 
       <div class="settings-section">
         <h3>Export Resolution</h3>
-        <div class="option-row" id="quality-options">
+        <div class="option-row">
           <label class="quality-option">
             <input type="radio" name="quality" value="1080p" checked>
             <span>1080p</span>
@@ -124,7 +114,6 @@
             <span>1440p</span>
           </label>
         </div>
-        <p class="hint">These resolutions are supported by the current backend. Auto and 480p will be added later.</p>
       </div>
 
       <div class="settings-section">
@@ -136,7 +125,7 @@
         <label>
           Clip Duration (5–60 seconds)
           <input type="number" name="clip_length"
-            min="5" max="60" value="30" required>
+                 min="5" max="60" value="30" required>
         </label>
       </div>
 
@@ -152,20 +141,22 @@
         </div>
 
         <input type="hidden" name="caption_style"
-          id="caption-style" value="None">
+               id="caption-style" value="None">
 
         <div class="caption-gallery" id="caption-gallery">
           {% for style in caption_styles %}
           <button type="button"
-            class="caption-style-card{% if style == 'None' %} active{% endif %}"
-            data-style="{{ style }}"
-            aria-pressed="{{ 'true' if style == 'None' else 'false' }}">
+                  class="caption-style-card{% if style == 'None' %} active{% endif %}"
+                  data-style="{{ style }}"
+                  aria-pressed="{{ 'true' if style == 'None' else 'false' }}">
             <span class="caption-sample" data-style="{{ style }}">
-              {% if style == 'None' %}
-                <span>NO CAPTIONS</span>
-              {% else %}
-                <span>YOUR STORY</span>
-              {% endif %}
+              <span>
+                {% if style == 'None' %}
+                NO CAPTIONS
+                {% else %}
+                YOUR STORY
+                {% endif %}
+              </span>
             </span>
             <small>{{ style }}</small>
           </button>
@@ -176,29 +167,15 @@
       <div class="settings-section">
         <h3>Caption Effects</h3>
         <div class="option-row" id="effect-options">
-          <button type="button" class="effect-option active" data-effect="none">
-            None
-          </button>
-          <button type="button" class="effect-option" data-effect="dark">
-            Dark Box
-          </button>
-          <button type="button" class="effect-option" data-effect="light">
-            Light Box
-          </button>
-          <button type="button" class="effect-option" data-effect="color">
-            Colour Box
-          </button>
-          <button type="button" class="effect-option" data-effect="marker">
-            Marker
-          </button>
-          <button type="button" class="effect-option" data-effect="outline">
-            Outline
-          </button>
-          <button type="button" class="effect-option" data-effect="shadow">
-            3D Shadow
-          </button>
+          <button type="button" class="effect-option active" data-effect="none">None</button>
+          <button type="button" class="effect-option" data-effect="dark">Dark Box</button>
+          <button type="button" class="effect-option" data-effect="light">Light Box</button>
+          <button type="button" class="effect-option" data-effect="color">Colour Box</button>
+          <button type="button" class="effect-option" data-effect="marker">Marker</button>
+          <button type="button" class="effect-option" data-effect="outline">Outline</button>
+          <button type="button" class="effect-option" data-effect="shadow">3D Shadow</button>
         </div>
-        <p class="hint">Effects are visual previews only until the backend rendering update.</p>
+        <p class="hint">Caption effects currently apply to the preview only.</p>
       </div>
 
       <div class="editor-grid">
@@ -214,20 +191,21 @@
         <label>
           Caption Font Size
           <input type="number" name="caption_size"
-            id="caption-size" min="24" max="96" value="48">
+                 id="caption-size" min="24" max="96" value="48">
         </label>
       </div>
 
       <label>
         Custom Caption Text
         <textarea name="caption_text" id="caption-text"
-          maxlength="160" rows="2"
-          placeholder="Enter caption text..."></textarea>
+                  maxlength="160" rows="2"
+                  placeholder="Enter caption text..."></textarea>
       </label>
 
       <p class="hint">
         Current exports support manually entered static captions.
-        Automatic speech-to-text and word-by-word animations are coming later.
+        Automatic English and Roman Hinglish speech captions,
+        synchronized highlighting, and caption editing are coming later.
       </p>
 
       <div class="studio-divider"></div>
@@ -248,7 +226,7 @@
         </div>
         <div class="extra-card">
           <strong>✨ Auto Captions</strong>
-          <small>Speech recognition</small>
+          <small>English + Roman Hinglish</small>
           <span>Coming soon</span>
         </div>
         <div class="extra-card">
@@ -262,14 +240,12 @@
         <button class="primary wide" id="generate-button" type="submit">
           ⚡ Find the Best Moments
         </button>
-        <p class="hint">
-          Upload videos you own or have permission to reuse.
-        </p>
+        <p class="hint">Upload videos you own or have permission to reuse.</p>
       </div>
     </form>
 
     <div id="generation-status" class="generation-status"
-      style="display:none" role="status" aria-live="polite">
+         style="display:none" role="status" aria-live="polite">
       <strong id="generation-title">Preparing your project...</strong>
       <p id="generation-message">Please wait.</p>
       <div class="progress-track">
@@ -286,13 +262,15 @@
         <strong>{{ j.mode|capitalize }} Moments</strong>
         <small>{{ j.created_at }} · {{ j.source }}</small>
       </div>
+
       <span>{{ j.status }} · {{ j.progress }}</span>
+
       {% if j.status == 'done' %}
       <div class="cliplinks">
         {% for c in j.clips|from_json %}
         <div class="result-clip">
           <video controls playsinline preload="none"
-            src="/clips/{{ c.filename }}"></video>
+                 src="/clips/{{ c.filename }}"></video>
           <a href="/clips/{{ c.filename }}">
             Download Clip {{ loop.index }} ↓
           </a>
@@ -342,7 +320,9 @@
  display:none;width:100%;height:100%;object-fit:cover
 }
 .preview-frame.fit video{object-fit:contain}
-.preview-frame.blur-mode video{object-fit:contain;position:relative;z-index:1}
+.preview-frame.blur-mode video{
+ object-fit:contain;position:relative;z-index:1
+}
 .preview-frame.blur-mode{
  background:linear-gradient(130deg,#44202a,#111820,#44202a)
 }
@@ -354,7 +334,8 @@
 .preview-placeholder small{font-size:11px}
 .preview-play{
  width:60px;height:60px;border-radius:50%;
- display:grid;place-items:center;background:#e92843;color:white;font-size:22px
+ display:grid;place-items:center;background:#e92843;
+ color:white;font-size:22px
 }
 .preview-caption{
  display:none;position:absolute;left:5%;right:5%;bottom:20%;
@@ -369,21 +350,24 @@
  display:flex;flex-direction:column;align-items:center;
  justify-content:center;gap:7px;min-width:95px;min-height:85px;
  padding:12px;background:#121116;color:#ddd;
- border:2px solid #39313b;border-radius:12px;
- cursor:pointer
+ border:2px solid #39313b;border-radius:12px;cursor:pointer
 }
 .option-card.active,.effect-option.active{
  border-color:#ff3648;background:#28151d;color:#fff
 }
 .option-card:disabled{opacity:.45;cursor:not-allowed}
 .option-card small{font-size:10px;color:#a39ba5}
-.ratio-symbol{display:block;border:2px solid #ff6675;border-radius:3px}
+.ratio-symbol{
+ display:block;border:2px solid #ff6675;border-radius:3px
+}
 .ratio-symbol.vertical{width:17px;height:29px}
 .ratio-symbol.square{width:24px;height:24px}
 .ratio-symbol.landscape{width:31px;height:18px}
 .crop-icon{font-size:26px;color:#ff5267}
 .quality-option{margin:0;cursor:pointer}
-.quality-option input{position:absolute;opacity:0;width:1px}
+.quality-option input{
+ position:absolute;opacity:0;width:1px
+}
 .quality-option span{
  display:block;padding:13px 20px;border:2px solid #39313b;
  background:#121116;border-radius:11px
@@ -394,7 +378,8 @@
 .caption-gallery{
  display:grid;grid-auto-flow:column;grid-auto-columns:145px;
  gap:11px;overflow-x:auto;padding:3px 2px 15px;
- scroll-snap-type:x mandatory;scrollbar-color:#793341 #17161b
+ scroll-snap-type:x mandatory;
+ scrollbar-color:#793341 #17161b
 }
 .caption-style-card{
  padding:8px;display:flex;flex-direction:column;gap:8px;
@@ -410,36 +395,71 @@
  background:#08080b;border-radius:7px;min-height:90px;
  padding:8px;text-align:center
 }
-.caption-sample span{font-size:15px;font-weight:900;line-height:1.2}
-.caption-sample[data-style="None"] span{font-size:11px;color:#777}
+.caption-sample span{
+ font-size:15px;font-weight:900;line-height:1.2
+}
+.caption-sample[data-style="None"] span{
+ font-size:11px;color:#777
+}
 .caption-sample[data-style="Karaoke Yellow"] span,
-.caption-sample[data-style="Classic Yellow"] span{color:#ffe14a}
-.caption-sample[data-style="Neon Red"] span{color:#ff3648;text-shadow:0 0 8px #ff3648}
-.caption-sample[data-style="Neon Blue"] span{color:#36dcff;text-shadow:0 0 8px #36dcff}
-.caption-sample[data-style="Gaming Green"] span{color:#5fff65}
-.caption-sample[data-style="Gold Luxe"] span{color:#ffd166}
-.caption-sample[data-style="Pink Glow"] span{color:#ff74cc;text-shadow:0 0 8px #ff74cc}
-.caption-sample[data-style="Purple Glow"] span{color:#c58aff}
-.caption-sample[data-style="Orange Punch"] span{color:#ffad49}
+.caption-sample[data-style="Classic Yellow"] span{
+ color:#ffe14a
+}
+.caption-sample[data-style="Neon Red"] span{
+ color:#ff3648;text-shadow:0 0 8px #ff3648
+}
+.caption-sample[data-style="Neon Blue"] span{
+ color:#36dcff;text-shadow:0 0 8px #36dcff
+}
+.caption-sample[data-style="Gaming Green"] span{
+ color:#5fff65
+}
+.caption-sample[data-style="Gold Luxe"] span{
+ color:#ffd166
+}
+.caption-sample[data-style="Pink Glow"] span{
+ color:#ff74cc;text-shadow:0 0 8px #ff74cc
+}
+.caption-sample[data-style="Purple Glow"] span{
+ color:#c58aff
+}
+.caption-sample[data-style="Orange Punch"] span{
+ color:#ffad49
+}
 .caption-sample[data-style="Hormozi Bold"] span,
 .caption-sample[data-style="TikTok Bold"] span{
  color:white;font-size:18px;text-shadow:2px 2px #f52b42
 }
 .caption-sample[data-style="Comic Pop"] span{
- color:#ffe14a;transform:rotate(-5deg);text-shadow:2px 2px red
+ color:#ffe14a;transform:rotate(-5deg);
+ text-shadow:2px 2px red
 }
-.caption-sample[data-style="Cinematic"] span{font-family:Georgia,serif;letter-spacing:2px}
-.caption-sample[data-style="Retro Pixel"] span{font-family:monospace}
-.caption-sample[data-style="Subtitle Bar"] span{background:#444;padding:6px}
+.caption-sample[data-style="Cinematic"] span{
+ font-family:Georgia,serif;letter-spacing:2px
+}
+.caption-sample[data-style="Retro Pixel"] span{
+ font-family:monospace
+}
+.caption-sample[data-style="Subtitle Bar"] span{
+ background:#444;padding:6px
+}
 .caption-sample[data-style="Minimal White"] span,
-.caption-sample[data-style="Instagram Clean"] span{font-weight:500}
-.caption-sample[data-style="High Contrast"] span{background:black;color:white}
-.caption-sample[data-style="Shadow White"] span{text-shadow:3px 3px #777}
+.caption-sample[data-style="Instagram Clean"] span{
+ font-weight:500
+}
+.caption-sample[data-style="High Contrast"] span{
+ background:black;color:white
+}
+.caption-sample[data-style="Shadow White"] span{
+ text-shadow:3px 3px #777
+}
 .effect-option{
  background:#151319;border:2px solid #39313b;
  color:#ddd;border-radius:9px;padding:11px 13px;cursor:pointer
 }
-.extras-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.extras-grid{
+ display:grid;grid-template-columns:repeat(2,1fr);gap:12px
+}
 .extra-card{
  background:#121116;border:1px solid #38313a;
  border-radius:12px;padding:18px;display:flex;
@@ -453,20 +473,36 @@
  border:1px solid #ff3648;border-radius:12px
 }
 .generation-status p{font-size:13px;color:#bcb1b8}
-.progress-track{height:8px;background:#383038;border-radius:8px;overflow:hidden}
+.progress-track{
+ height:8px;background:#383038;border-radius:8px;overflow:hidden
+}
 #generation-bar{
  width:10%;height:100%;background:#ff3648;transition:width .4s
 }
-.result-clip{display:flex;flex-direction:column;gap:10px}
-.result-clip video{width:160px;max-height:280px;background:black;border-radius:10px}
-.preview-caption.effect-dark{background:#000b;padding:7px}
-.preview-caption.effect-light{background:#fffd;color:#111;text-shadow:none;padding:7px}
-.preview-caption.effect-color{background:#ff3648;padding:7px}
-.preview-caption.effect-marker{background:linear-gradient(transparent 55%,#ffdc3d 55%)}
+.result-clip{
+ display:flex;flex-direction:column;gap:10px
+}
+.result-clip video{
+ width:160px;max-height:280px;background:black;border-radius:10px
+}
+.preview-caption.effect-dark{
+ background:#000b;padding:7px
+}
+.preview-caption.effect-light{
+ background:#fffd;color:#111;text-shadow:none;padding:7px
+}
+.preview-caption.effect-color{
+ background:#ff3648;padding:7px
+}
+.preview-caption.effect-marker{
+ background:linear-gradient(transparent 55%,#ffdc3d 55%)
+}
 .preview-caption.effect-outline{
  -webkit-text-stroke:1px #000;text-shadow:2px 2px black
 }
-.preview-caption.effect-shadow{text-shadow:4px 4px #ff3648}
+.preview-caption.effect-shadow{
+ text-shadow:4px 4px #ff3648
+}
 @media(max-width:680px){
  .studio-v2{padding:30px 15px}
  .preview-stage{min-height:300px;padding:12px}
@@ -497,6 +533,9 @@
  const statusTitle=document.getElementById('generation-title');
  const statusMessage=document.getElementById('generation-message');
  const bar=document.getElementById('generation-bar');
+ const ratioInput=document.getElementById('video-ratio');
+ const cropInput=document.getElementById('crop-mode');
+
  let objectURL=null;
  let currentEffect='none';
 
@@ -505,7 +544,9 @@
    URL.revokeObjectURL(objectURL);
    objectURL=null;
   }
+
   const file=upload.files[0];
+
   if(!file){
    video.pause();
    video.removeAttribute('src');
@@ -516,161 +557,31 @@
    updateCaption();
    return;
   }
+
   objectURL=URL.createObjectURL(file);
   video.src=objectURL;
   video.style.display='block';
   placeholder.style.display='none';
-  videoInfo.textContent=file.name+' · '+(file.size/1048576).toFixed(1)+' MB';
+  videoInfo.textContent=
+   file.name+' · '+(file.size/1048576).toFixed(1)+' MB';
   updateCaption();
  });
 
  function selectGroup(containerSelector,itemSelector,callback){
-  document.querySelectorAll(containerSelector+' '+itemSelector).forEach(function(item){
+  document.querySelectorAll(
+   containerSelector+' '+itemSelector
+  ).forEach(function(item){
    item.addEventListener('click',function(){
-    document.querySelectorAll(containerSelector+' '+itemSelector).forEach(function(other){
+    document.querySelectorAll(
+     containerSelector+' '+itemSelector
+    ).forEach(function(other){
      other.classList.remove('active');
-     if(other.hasAttribute('aria-pressed'))other.setAttribute('aria-pressed','false');
+     if(other.hasAttribute('aria-pressed')){
+      other.setAttribute('aria-pressed','false');
+     }
     });
+
     item.classList.add('active');
-    if(item.hasAttribute('aria-pressed'))item.setAttribute('aria-pressed','true');
-    callback(item);
-   });
-  });
- }
 
- selectGroup('#ratio-options','.option-card',function(item){
-  const ratio=item.dataset.ratio;
-  frame.classList.remove('ratio-vertical','ratio-square','ratio-wide');
-  frame.classList.add(ratio==='9:16'?'ratio-vertical':ratio==='1:1'?'ratio-square':'ratio-wide');
-  document.getElementById('preview-ratio-label').textContent=ratio;
-  document.getElementById('video-ratio').value=ratio;
- });
-
- selectGroup('#crop-options','.option-card:not(:disabled)',function(item){
-  frame.classList.remove('fit','blur-mode');
-  if(item.dataset.crop==='fit')frame.classList.add('fit');
-  if(item.dataset.crop==='blur')frame.classList.add('blur-mode');
- });
-
- selectGroup('#caption-gallery','.caption-style-card',function(item){
-  captionStyle.value=item.dataset.style;
-  updateCaption();
- });
-
- selectGroup('#effect-options','.effect-option',function(item){
-  currentEffect=item.dataset.effect;
-  updateCaption();
- });
-
- function updateCaption(){
-  const text=captionInput.value.trim();
-  const style=captionStyle.value;
-  caption.textContent=text;
-  caption.style.display=(text&&style!=='None'&&video.style.display!=='none')?'block':'none';
-  caption.className='preview-caption';
-  if(currentEffect!=='none')caption.classList.add('effect-'+currentEffect);
-
-  const colors={
-   'Karaoke Yellow':'#ffe14a','Classic Yellow':'#ffe14a',
-   'Neon Red':'#ff3648','Neon Blue':'#36dcff',
-   'Gaming Green':'#5fff65','Gold Luxe':'#ffd166',
-   'Pink Glow':'#ff74cc','Purple Glow':'#c58aff',
-   'Orange Punch':'#ffad49'
-  };
-  caption.style.color=colors[style]||'white';
-  if(currentEffect==='light')caption.style.color='#111';
-
-  const size=Number(captionSize.value)||48;
-  caption.style.fontSize=Math.max(13,Math.min(40,size*.45))+'px';
-
-  caption.style.top='auto';
-  caption.style.bottom='auto';
-  if(captionPosition.value==='top')caption.style.top='15%';
-  else if(captionPosition.value==='middle')caption.style.top='45%';
-  else caption.style.bottom='20%';
- }
-
- [captionInput,captionSize,captionPosition].forEach(function(element){
-  element.addEventListener('input',updateCaption);
-  element.addEventListener('change',updateCaption);
- });
-
- function showStatus(title,text,percent){
-  status.style.display='block';
-  statusTitle.textContent=title;
-  statusMessage.textContent=text;
-  bar.style.width=percent+'%';
- }
-
- form.addEventListener('submit',async function(event){
-  event.preventDefault();
-  const file=upload.files[0];
-  const url=form.querySelector('[name="url"]').value.trim();
-
-  if(!file&&!url){
-   alert('Please upload a video or enter a URL.');
-   return;
-  }
-  if(file&&file.size>500*1048576){
-   alert('File exceeds 500 MB.');
-   return;
-  }
-
-  button.disabled=true;
-  button.textContent='Uploading...';
-  showStatus('Uploading your video','Keep this page open while uploading.',10);
-
-  try{
-   const response=await fetch('/jobs',{
-    method:'POST',
-    body:new FormData(form),
-    credentials:'same-origin'
-   });
-
-   if(!response.ok){
-    let error='Could not create project.';
-    try{
-     const data=await response.json();
-     error=data.detail||error;
-    }catch(_){}
-    throw new Error(error);
-   }
-
-   showStatus('Project submitted','Checking processing status...',35);
-   window.location.assign('/dashboard');
-  }catch(error){
-   showStatus('Upload failed',error.message||'Please try again.',0);
-   button.disabled=false;
-   button.textContent='⚡ Find the Best Moments';
-  }
- });
-
- async function checkProjects(){
-  try{
-   const response=await fetch('/api/jobs',{
-    credentials:'same-origin',cache:'no-store'
-   });
-   if(!response.ok)return;
-
-   const jobs=await response.json();
-   const active=jobs.find(function(job){
-    return job.status==='queued'||job.status==='processing';
-   });
-
-   if(active){
-    showStatus('Generating clips',active.progress||'Processing...',active.status==='queued'?35:60);
-    setTimeout(checkProjects,5000);
-   }else if(jobs.length){
-    const first=document.querySelector('.job');
-    if(first&&/queued|processing/i.test(first.textContent)){
-     window.location.reload();
-    }
-   }
-  }catch(_){
-   setTimeout(checkProjects,10000);
-  }
- }
- checkProjects();
-})();
-</script>
-{% endblock %}
+    if(item.hasAttribute('aria-pressed')){
+     item.setA
