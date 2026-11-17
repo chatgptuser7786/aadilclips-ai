@@ -1,4 +1,3 @@
-
 import os
 import re
 import json
@@ -464,4 +463,4 @@ def process(jid, source, mode, upload_path, clip_length, quality, style, text, s
             else:
                 if os.getenv("ENABLE_YOUTUBE") != "1":
                     raise ValueError("YouTube importing is disabled. Please upload a video.")
-                if not re.fullmatch(r"https://(www\.)?(youtube\.com/watch\?[^\s]+|yout
+                if not re.fullmatch(r"https://(www\.)?(youtube\.com/watch\?[^\s]+|youtu
