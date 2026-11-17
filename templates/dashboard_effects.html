@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="dashboard studio-v2">
+  <div class="eyebrow">AI CLIP STUDIO</div>
+  <h1>Clip <span class="red">Studio.</span></h1>
+  <p>Upload a video, customize The Look, and create your best moments.</p>
+  <div class="box">
+    <form id="clip-form" action="/jobs" method="post" enctype="multipart/form-data">
+      <h2>1. Add your video</h2>
+      <label>YouTube URL <input name="url" type="url" placeholder="Paste YouTube video link"></label>
+      <p class="hint">YouTube importing is currently disabled on the server.</p>
+      <label>Or upload your video
+        <input id="video-upload" name="video" type="file" accept=".mp4,.mov,.mkv,.webm,video/*">
+      </label>
+      <p class="hint">Maximum upload: 500 MB. Use videos you own or have permission to reuse.</p>
+      <div class="studio-divider"></div>
+      <div class="eyebrow">CUSTOMIZE YOUR VIDEO</div>
+      <h2>2. The <span class="red">Look.</span></h2>
+      <div class="preview-panel">
+        <div class="preview-header"><strong>Live Preview</strong><span id="preview-ratio-label">9:16</span></div>
+        <div class="preview-stage">
+          <div id="preview-frame" class="preview-frame ratio-vertical">
+            <video id="preview-video" controls playsinline preload="metadata"></video>
+            <div id="preview-caption" class="preview-caption"></div>
+            <div id="manual-drag-layer" class="manual-drag-layer" aria-label="Drag to choose video crop position" title="Drag to reposition video"></div>
+            <div id="preview-placeholder" class="preview-placeholder">
+              <span class="preview-play">▶</span>
+              <strong>Your video preview</strong><small>Upload a video to preview</small>
+            </div>
+          </div>
+        </div>
+        <p id="video-info" class="hint"></p>
+        <p class="hint">Preview is approximate. Face Follow tracking is applied during export, not live preview.</p>
+      </div>
+      <div class="settings-section">
+        <h3>Video Shape</h3>
+        <div class="option-row" id="ratio-options">
+          <button type="button" class="option-card active" data-ratio="9:16">▯ <strong>9:16</strong><small>Shorts</small></button>
+          <button type="button" class="option-card" data-ratio="1:1">□ <strong>1:1</strong><small>Square</small></button>
+          <button type="button" class="option-card" data-ratio="16:9">▭ <strong>16:9</strong><small>Wide</small></button>
+        </div>
+        <input type="hidden" id="video-ratio" name="video_ratio" value="9:16">
+      </div>
+      <div class="settings-section">
+        <h3>Video Cropping</h3>
+        <div class="option-row" id="crop-options">
+          <button type="button" class="option-card active" data-crop="fill">▣ <strong>Fill</strong></button>
+          <button type="button" class="option-card" data-crop="fit">▢ <strong>Fit</strong></button>
+          <button type="button" class="option-card" data-crop="blur">▧ <strong>Fit + Blur</strong></button>
+          <button type="button" class="option-card" data-crop="manual">✥ <strong>Choose</strong></button>
+          <button type="button" class="option-card" data-crop="follow">◎ <strong>Face Follow</strong><small>Beta</small></button>
+        </div>
+        <input type="hidden" id="crop-mode" name="crop_mode" value="fill">
+        <div id="manual-controls" class="manual-controls" hidden>
+          <p class="hint">Choose crop: drag the preview or move the sliders. This framing will be used in the exported video.</p>
+          <div class="editor-grid">
+            <label>Horizontal framing
+              <input id="crop-x-slider" type="range" min="0" max="100" value="50">
+            </label>
+            <label>Vertical framing
+              <input id="crop-y-slider" type="range" min="0" max="100" value="50">
+            </label>
+          </div>
+          <button type="button" class="secondary" id="crop-reset">Reset to center</button>
+        </div>
+        <input type="hidden" name="crop_x" id="crop-x" value="50">
+        <input type="hidden" name="crop_y" id="crop-y" value="50">
+        <p class="hint">Choose lets you position the crop manually. Face Follow (Beta) follows a detected face automatically; if none is found, it keeps the center. This is face tracking, not voice-based speaker identification.</p>
+      </div>
+      <div class="settings-section">
+        <h3>Export Resolution</h3>
+        <div class="option-row quality-row">
+          <label><input type="radio" name="quality" value="1080p" checked><span>1080p</span></label>
+          <label><input type="radio" name="quality" value="720p"><span>720p</span></label>
+          <label><input type="radio" name="quality" value="1440p"><span>1440p</span></label>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Highlight Mode</h3>
+        <select name="mode">
+          <option value="best">⚡ Best Moments</option>
+          <option value="funny">😄 Funny Moments (Audio Beta)</option>
+        </select>
+        <label>Clip Duration (5–60 seconds)
+          <input type="number" name="clip_length" min="5" max="60" value="30" required>
+        </label>
+      </div>
+      <div class="studio-divider"></div>
+      <div class="eyebrow">MAKE YOUR CAPTIONS STAND OUT</div>
+      <h2>3. <span class="red">Captions.</span></h2>
+      <h3>Caption Styles</h3>
+      <input type="hidden" id="caption-style" name="caption_style" value="None">
+      <div class="caption-gallery" id="caption-gallery">
+        {% for style in caption_styles %}
+        <button type="button" class="caption-style-card{% if style == 'None' %} active{% endif %}" data-style="{{ style }}">
+          <span class="caption-sample" data-style="{{ style }}">{% if style == 'None' %}NO CAPTIONS{% else %}YOUR STORY{% endif %}</span>
+          <small>{{ style }}</small>
+        </button>
+        {% endfor %}
+      </div>
+      <div class="settings-section">
+        <h3>Caption Effects <small class="hint">(applied to exported clips)</small></h3>
+        <input type="hidden" id="caption-effect" name="caption_effect" value="none">
+        <div class="option-row" id="effect-options">
+          <button type="button" class="effect-option active" data-effect="none">None</button>
+          <button type="button" class="effect-option" data-effect="dark">Dark Box</button>
+          <button type="button" class="effect-option" data-effect="light">Light Box</button>
+          <button type="button" class="effect-option" data-effect="color">Colour Box</button>
+          <button type="button" class="effect-option" data-effect="marker">Marker</button>
+          <button type="button" class="effect-option" data-effect="outline">Outline</button>
+          <button type="button" class="effect-option" data-effect="shadow">3D Shadow</button>
+        </div>
+      </div>
+      <div class="editor-grid">
+        <label>Caption Position
+          <select name="caption_position" id="caption-position">
+            <option value="bottom">Bottom</option><option value="middle">Middle</option><option value="top">Top</option>
+          </select>
+        </label>
+        <label>Caption Font Size
+          <input type="number" name="caption_size" id="caption-size" min="24" max="96" value="48">
+        </label>
+      </div>
+      <label>Custom Caption Text
+        <textarea name="caption_text" id="caption-text" maxlength="160" rows="2" placeholder="Enter your caption..."></textarea>
+      </label>
+      <p class="hint">For automatic English or Roman Hinglish captions, select a style and leave Custom Caption Text empty. Caption effects also apply to exported clips. Preview is approximate.</p>
+      <div class="studio-divider"></div>
+      <h2>4. <span class="red">Extras.</span></h2>
+      <div class="extras-grid">
+        <div class="extra-card">🖼️ <strong>Add Logo</strong><small>Coming soon</small></div>
+        <div class="extra-card">🎵 <strong>Background Music</strong><small>Coming soon</small></div>
+        <div class="extra-card">✨ <strong>Auto Captions</strong><small>Available</small></div>
+        <div class="extra-card">🎯 <strong>Face Following</strong><small>Beta export</small></div>
+      </div>
+      <button class="primary wide" id="generate-button" type="submit">⚡ Find the Best Moments</button>
+    </form>
+    <div id="generation-status" class="generation-status" style="display:none" role="status">
+      <strong id="generation-title">Uploading...</strong>
+      <p id="generation-message"></p>
+      <div class="progress-track"><div id="generation-bar"></div></div>
+    </div>
+  </div>
+  <h2>Recent Projects</h2>
+  <div id="jobs">
+    {% for j in jobs %}
+    <div class="job">
+      <div><strong>{{ j.mode|capitalize }} Moments</strong><small>{{ j.created_at }} · {{ j.source }}</small></div>
+      <span>{{ j.status }} · {{ j.progress }}</span>
+      {% if j.status == 'done' %}
+      <div class="cliplinks">
+        {% for c in j.clips|from_json %}
+        <div class="result-clip">
+          <video controls playsinline preload="none" src="/clips/{{ c.filename }}"></video>
+          <a href="/clips/{{ c.filename }}">Download Clip {{ loop.index }} ↓</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% elif j.status == 'failed' %}
+      <small class="error">{{ j.error }}</small>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="muted">No projects yet. Your clips will appear here.</p>
+    {% endfor %}
+  </div>
+</section>
+<style>
+.studio-v2{max-width:1000px}
+.studio-divider{height:1px;background:#373038;margin:28px 0}
+.preview-panel{background:#101014;border:1px solid #393039;border-radius:16px;padding:16px;margin:20px 0}
+.preview-header{display:flex;justify-content:space-between;margin-bottom:12px}
+.preview-header span{color:#ff5267}
+.preview-stage{min-height:320px;background:#08080b;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:14px}
+.preview-frame{position:relative;background:#050507;overflow:hidden;border:1px solid #39343b;border-radius:10px;width:210px;aspect-ratio:9/16;max-height:450px}
+.preview-frame.ratio-square{width:290px;aspect-ratio:1}
+.preview-frame.ratio-wide{width:min(100%,480px);aspect-ratio:16/9}
+.preview-frame video{display:none;width:100%;height:100%;object-fit:cover}
+.preview-frame.fit video,.preview-frame.blur-mode video{object-fit:contain}
+.preview-frame.blur-mode{background:linear-gradient(130deg,#4a1a29,#111b25,#4a1a29)}
+.manual-controls{margin-top:14px;padding:16px;border:1px solid #39313b;border-radius:12px;background:#100f14}
+.manual-controls[hidden]{display:none!important}
+.manual-controls input[type="range"]{width:100%;accent-color:#ff3648;cursor:pointer}
+.manual-controls .secondary{margin-top:8px}
+.manual-drag-layer{display:none;position:absolute;inset:0;z-index:4;cursor:grab;touch-action:none}
+.manual-drag-layer.enabled{display:block}
+.manual-drag-layer.dragging{cursor:grabbing}
+
+.preview-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#aaa;text-align:center}
+.preview-play{background:#e92843;border-radius:50%;padding:20px;color:white}
+.preview-caption{display:none;position:absolute;left:5%;right:5%;bottom:20%;z-index:2;text-align:center;font-size:22px;font-weight:900;color:white;text-shadow:2px 2px 3px black;overflow-wrap:anywhere;pointer-events:none}
+.settings-section{margin:25px 0}
+.settings-section h3{margin-bottom:12px}
+.option-row{display:flex;flex-wrap:wrap;gap:10px}
+.option-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:90px;min-height:80px;padding:10px;background:#121116;color:#ddd;border:2px solid #39313b;border-radius:12px;cursor:pointer}
+.option-card.active,.effect-option.active,.caption-style-card.active{border-color:#ff3648;background:#28151d;color:white}
+.option-card:disabled{opacity:.45}
+.option-card small{font-size:10px;color:#aaa}
+.quality-row label{margin:0;cursor:pointer}
+.quality-row input{position:absolute;opacity:0}
+.quality-row span{display:block;padding:12px 20px;border:2px solid #39313b;border-radius:10px;background:#121116}
+.quality-row input:checked+span{border-color:#ff3648;background:#28151d}
+.caption-gallery{display:grid;grid-auto-flow:column;grid-auto-columns:135px;gap:10px;overflow-x:auto;padding:5px 0 15px}
+.caption-style-card{display:flex;flex-direction:column;gap:10px;background:#131217;color:#eee;border:2px solid #38313a;border-radius:11px;padding:8px;cursor:pointer}
+.caption-sample{display:flex;align-items:center;justify-content:center;min-height:85px;background:#08080b;border-radius:7px;font-size:14px;font-weight:900;text-align:center}
+.caption-style-card small{font-size:11px}
+.caption-sample[data-style="Neon Red"]{color:#ff3648;text-shadow:0 0 8px #ff3648}
+.caption-sample[data-style="Neon Blue"]{color:#36dcff}
+.caption-sample[data-style="Karaoke Yellow"],.caption-sample[data-style="Classic Yellow"]{color:#ffe14a}
+.caption-sample[data-style="Gaming Green"]{color:#5fff65}
+.caption-sample[data-style="Gold Luxe"]{color:#ffd166}
+.caption-sample[data-style="Pink Glow"]{color:#ff74cc}
+.caption-sample[data-style="Purple Glow"]{color:#c58aff}
+.caption-sample[data-style="Orange Punch"]{color:#ffad49}
+.effect-option{background:#151319;border:2px solid #39313b;color:#ddd;border-radius:9px;padding:10px;cursor:pointer}
+.extras-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:25px}
+.extra-card{background:#121116;border:1px solid #38313a;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.extra-card small{color:#ff6876}
+.generation-status{margin-top:20px;padding:18px;background:#231419;border:1px solid #ff3648;border-radius:12px}
+.progress-track{height:8px;background:#383038;border-radius:8px;overflow:hidden}
+#generation-bar{height:100%;width:10%;background:#ff3648}
+.result-clip{display:flex;flex-direction:column;gap:8px}
+.result-clip video{width:160px;max-height:280px;background:black}
+.preview-caption.effect-dark{background:#000b;padding:7px}
+.preview-caption.effect-light{background:#fffd;color:#111!important;text-shadow:none;padding:7px}
+.preview-caption.effect-color{background:#ff3648;padding:7px}
+.preview-caption.effect-marker{background:linear-gradient(transparent 55%,#ffdc3d 55%)}
+.preview-caption.effect-outline{-webkit-text-stroke:1px black}
+.preview-caption.effect-shadow{text-shadow:4px 4px #ff3648}
+@media(max-width:680px){.preview-stage{min-height:280px}.preview-frame{width:175px}.preview-frame.ratio-square{width:230px}.extras-grid{grid-template-columns:1fr}.option-card{min-width:78px}}
+
+/* Mobile viewport and horizontal overflow repair */
+html:has(.studio-v2),body:has(.studio-v2){width:100%!important;min-width:0!important;max-width:none!important;overflow-x:clip!important}
+body:has(.studio-v2)>header,body:has(.studio-v2)>main,body:has(.studio-v2)>footer{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+body:has(.studio-v2)>main>.dashboard.studio-v2{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;box-sizing:border-box!important;overflow-x:clip!important}
+.studio-v2>.box,.studio-v2 #clip-form,.studio-v2 .preview-panel,.studio-v2 .preview-stage,.studio-v2 .settings-section,.studio-v2 .caption-gallery{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.studio-v2 .caption-gallery{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overscroll-behavior-x:contain;scrollbar-width:thin}
+.studio-v2 .caption-style-card{flex:0 0 135px;min-width:0}
+.studio-v2 .preview-frame{max-width:100%!important}
+.studio-v2 .option-row{min-width:0;max-width:100%;flex-wrap:wrap}
+.studio-v2 .editor-grid,.studio-v2 .extras-grid{min-width:0;max-width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:680px){.studio-v2 .editor-grid,.studio-v2 .extras-grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+<script>
+(function(){
+ const form=document.getElementById('clip-form');
+ const upload=document.getElementById('video-upload');
+ const video=document.getElementById('preview-video');
+ const frame=document.getElementById('preview-frame');
+ const placeholder=document.getElementById('preview-placeholder');
+ const caption=document.getElementById('preview-caption');
+ const captionText=document.getElementById('caption-text');
+ const captionStyle=document.getElementById('caption-style');
+ const captionSize=document.getElementById('caption-size');
+ const captionPosition=document.getElementById('caption-position');
+ const button=document.getElementById('generate-button');
+ const status=document.getElementById('generation-status');
+ const cropControls=document.getElementById('manual-controls');
+ const cropX=document.getElementById('crop-x');
+ const cropY=document.getElementById('crop-y');
+ const cropXSlider=document.getElementById('crop-x-slider');
+ const cropYSlider=document.getElementById('crop-y-slider');
+ const dragLayer=document.getElementById('manual-drag-layer');
+ let objectURL=null, effect='none';
+ const clamp=(n)=>Math.max(0,Math.min(100,Math.round(n)));
+ function setCrop(x,y){
+  cropX.value=cropXSlider.value=clamp(x);
+  cropY.value=cropYSlider.value=clamp(y);
+  video.style.objectPosition=cropX.value+'% '+cropY.value+'%';
+ }
+ cropXSlider.addEventListener('input',()=>setCrop(cropXSlider.value,cropYSlider.value));
+ cropYSlider.addEventListener('input',()=>setCrop(cropXSlider.value,cropYSlider.value));
+ document.getElementById('crop-reset').addEventListener('click',()=>setCrop(50,50));
+ let dragStart=null;
+ dragLayer.addEventListener('pointerdown',function(e){
+  if(!video.videoWidth)return;
+  const r=frame.getBoundingClientRect();
+  const scale=Math.max(r.width/video.videoWidth,r.height/video.videoHeight);
+  dragStart={x:e.clientX,y:e.clientY,cx:Number(cropX.value),cy:Number(cropY.value),overflowX:Math.max(0,video.videoWidth*scale-r.width),overflowY:Math.max(0,video.videoHeight*scale-r.height)};
+  dragLayer.setPointerCapture(e.pointerId);
+  dragLayer.classList.add('dragging');
+ });
+ dragLayer.addEventListener('pointermove',function(e){
+  if(!dragStart)return;
+  const nx=dragStart.overflowX>1?dragStart.cx-(e.clientX-dragStart.x)/dragStart.overflowX*100:50;
+  const ny=dragStart.overflowY>1?dragStart.cy-(e.clientY-dragStart.y)/dragStart.overflowY*100:50;
+  setCrop(nx,ny);
+ });
+ function finishDrag(){dragStart=null;dragLayer.classList.remove('dragging');}
+ dragLayer.addEventListener('pointerup',finishDrag);
+ dragLayer.addEventListener('pointercancel',finishDrag);
+
+ upload.addEventListener('change',function(){
+  if(objectURL)URL.revokeObjectURL(objectURL);
+  const file=upload.files[0];
+  if(!file){video.removeAttribute('src');video.load();video.style.display='none';placeholder.style.display='flex';return;}
+  objectURL=URL.createObjectURL(file);
+  video.src=objectURL;video.style.display='block';placeholder.style.display='none';
+  document.getElementById('video-info').textContent=file.name+' · '+(file.size/1048576).toFixed(1)+' MB';
+  updateCaption();
+ });
+ function selectGroup(selector,callback){
+  document.querySelectorAll(selector).forEach(function(item){
+   item.addEventListener('click',function(){
+    document.querySelectorAll(selector).forEach(function(other){other.classList.remove('active');});
+    item.classList.add('active');callback(item);
+   });
+  });
+ }
+ selectGroup('#ratio-options [data-ratio]',function(item){
+  const ratio=item.dataset.ratio;
+  document.getElementById('video-ratio').value=ratio;
+  document.getElementById('preview-ratio-label').textContent=ratio;
+  frame.classList.remove('ratio-vertical','ratio-square','ratio-wide');
+  frame.classList.add(ratio==='9:16'?'ratio-vertical':ratio==='1:1'?'ratio-square':'ratio-wide');
+  setCrop(cropX.value,cropY.value);
+ });
+ selectGroup('#crop-options [data-crop]',function(item){
+  const crop=item.dataset.crop;
+  document.getElementById('crop-mode').value=crop;
+  frame.classList.remove('fit','blur-mode');
+  if(crop==='fit')frame.classList.add('fit');
+  if(crop==='blur')frame.classList.add('blur-mode');
+  cropControls.hidden=crop!=='manual';
+  dragLayer.classList.toggle('enabled',crop==='manual');
+  setCrop(cropX.value,cropY.value);
+ });
+ selectGroup('#caption-gallery [data-style]',function(item){captionStyle.value=item.dataset.style;updateCaption();});
+ selectGroup('#effect-options [data-effect]',function(item){effect=item.dataset.effect;document.getElementById('caption-effect').value=effect;updateCaption();});
+ function updateCaption(){
+  caption.textContent=captionText.value.trim() || (captionStyle.value==='None'?'':'YOUR STORY');
+  caption.className='preview-caption';
+  if(effect!=='none')caption.classList.add('effect-'+effect);
+  caption.style.display=caption.textContent&&captionStyle.value!=='None'&&video.style.display!=='none'?'block':'none';
+  const colors={'Karaoke Yellow':'#ffe14a','Classic Yellow':'#ffe14a','Neon Red':'#ff3648','Neon Blue':'#36dcff','Gaming Green':'#5fff65','Gold Luxe':'#ffd166','Pink Glow':'#ff74cc','Purple Glow':'#c58aff','Orange Punch':'#ffad49'};
+  caption.style.color=colors[captionStyle.value]||'white';
+  caption.style.fontSize=Math.max(13,Math.min(40,(Number(captionSize.value)||48)*.45))+'px';
+  caption.style.top='auto';caption.style.bottom='auto';
+  if(captionPosition.value==='top')caption.style.top='15%';
+  else if(captionPosition.value==='middle')caption.style.top='45%';
+  else caption.style.bottom='20%';
+ }
+ [captionText,captionSize,captionPosition].forEach(function(el){el.addEventListener('input',updateCaption);el.addEventListener('change',updateCaption);});
+ function showStatus(title,message,percent){
+  status.style.display='block';
+  document.getElementById('generation-title').textContent=title;
+  document.getElementById('generation-message').textContent=message;
+  document.getElementById('generation-bar').style.width=percent+'%';
+ }
+ form.addEventListener('submit',async function(e){
+  e.preventDefault();
+  const file=upload.files[0];
+  const url=form.querySelector('[name="url"]').value.trim();
+  if(!file&&!url){alert('Upload a video or enter a URL.');return;}
+  if(file&&file.size>500*1048576){alert('File exceeds 500 MB.');return;}
+  button.disabled=true;button.textContent='Uploading...';
+  showStatus('Uploading','Keep this page open during upload.',10);
+  try{
+   const response=await fetch('/jobs',{method:'POST',body:new FormData(form),credentials:'same-origin'});
+   if(!response.ok){
+    let message='Could not create project';
+    try{const data=await response.json();message=data.detail||message;}catch(_){}
+    throw new Error(message);
+   }
+   window.location.assign('/dashboard');
+  }catch(error){
+   showStatus('Upload failed',error.message||'Please try again',0);
+   button.disabled=false;button.textContent='⚡ Find the Best Moments';
+  }
+ });
+ async function checkProjects(){
+  try{
+   const response=await fetch('/api/jobs',{credentials:'same-origin',cache:'no-store'});
+   if(!response.ok)return;
+   const jobs=await response.json();
+   const active=jobs.find(function(j){return j.status==='queued'||j.status==='processing';});
+   if(active){
+    showStatus('Processing video',active.progress||'Working...',60);
+    setTimeout(checkProjects,5000);
+   }else if(jobs.length){
+    const first=document.querySelector('.job');
+    if(first&&/queued|processing/i.test(first.textContent))window.location.reload();
+   }
+  }catch(_){setTimeout(checkProjects,10000);}
+ }
+ checkProjects();updateCaption();
+})();
+</script>
+{% endblock %}
